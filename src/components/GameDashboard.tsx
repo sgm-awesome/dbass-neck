@@ -6,6 +6,7 @@ interface GameDashboardProps {
   currentRoot: ChordRoot;
   currentChordType: ChordType;
   currentInterval: string;
+  showIntervalNames: boolean; // settings: show descriptive names
   
   gameState: 'GUESSING' | 'SUCCESS' | 'TRY_AGAIN' | 'FAILED_SHOW_ANSWER';
   score: number;
@@ -21,6 +22,7 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
   currentRoot,
   currentChordType,
   currentInterval,
+  showIntervalNames,
   gameState,
   score,
   streak,
@@ -128,9 +130,11 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
             <span className="text-3xl font-black bg-gradient-to-r from-indigo-300 to-violet-300 bg-clip-text text-transparent">
               {currentInterval}
             </span>
-            <span className="text-lg text-slate-300 font-medium">
-              ({intervalName})
-            </span>
+            {showIntervalNames && (
+              <span className="text-lg text-slate-300 font-medium">
+                ({intervalName})
+              </span>
+            )}
           </div>
         </div>
 

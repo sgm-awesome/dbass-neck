@@ -14,6 +14,7 @@ export default function App() {
   // Settings State
   const [showNoteNames, setShowNoteNames] = useState(false);
   const [showRootNotes, setShowRootNotes] = useState(true);
+  const [showIntervalNames, setShowIntervalNames] = useState(true);
   const [showTapes, setShowTapes] = useState(true);
   const [showPositionLines, setShowPositionLines] = useState(true);
   const [soundVolume, setSoundVolume] = useState(0.6);
@@ -209,6 +210,7 @@ export default function App() {
             currentRoot={currentRoot}
             currentChordType={currentChordType}
             currentInterval={currentInterval}
+            showIntervalNames={showIntervalNames}
             gameState={gameState}
             score={score}
             streak={streak}
@@ -233,6 +235,8 @@ export default function App() {
             setShowNoteNames={setShowNoteNames}
             showRootNotes={showRootNotes}
             setShowRootNotes={setShowRootNotes}
+            showIntervalNames={showIntervalNames}
+            setShowIntervalNames={setShowIntervalNames}
             showTapes={showTapes}
             setShowTapes={setShowTapes}
             showPositionLines={showPositionLines}
