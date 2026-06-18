@@ -221,6 +221,7 @@ button:active {
 .stroke-dasharray-\[2\] { stroke-dasharray: 2 2; }
 .stroke-slate-300 { stroke: #cbd5e1; }
 .fill-indigo-400 { fill: #818cf8; }
+.fill-indigo-300 { fill: #a5b4fc; }
 .fill-indigo-300\/80 { fill: rgba(165, 180, 252, 0.8); }
 .fill-violet-400 { fill: #a78bfa; }
 .fill-violet-400\/40 { fill: rgba(167, 139, 250, 0.4); }
