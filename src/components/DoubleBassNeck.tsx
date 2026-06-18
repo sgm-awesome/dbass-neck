@@ -381,7 +381,16 @@ export const DoubleBassNeck: React.FC<DoubleBassNeckProps> = ({
                 stroke = 'rgba(199, 210, 254, 0.7)';
                 showLabel = true;
                 labelColor = '#ffffff';
+              } else if (showNoteNames) {
+                // Easy Mode: show all notes inside subtle slate circles
+                fill = 'rgba(30, 41, 59, 0.9)'; 
+                stroke = 'rgba(148, 163, 184, 0.5)';
+                size = 11;
+                showLabel = true;
+                labelColor = 'rgba(248, 250, 252, 0.9)';
               }
+
+              const hasSolidCircle = isCorrectClick || isWrong || isCorrectTargetLocation || isRootLocation || showNoteNames;
 
               return (
                 <g
@@ -398,7 +407,7 @@ export const DoubleBassNeck: React.FC<DoubleBassNeckProps> = ({
                   />
 
                   {/* Visual note head indicator */}
-                  {(isCorrectClick || isWrong || isCorrectTargetLocation || isRootLocation) ? (
+                  {hasSolidCircle ? (
                     <circle
                       cx={pIndex === 0 ? x - 15 : x}
                       cy={noteY}
@@ -438,32 +447,6 @@ export const DoubleBassNeck: React.FC<DoubleBassNeckProps> = ({
                     >
                       {noteInfo.name}
                     </text>
-                  )}
-
-                  {/* Hover preview tooltip when note names are off */}
-                  {!showLabel && !(isCorrectClick || isWrong || isCorrectTargetLocation || isRootLocation) && (
-                    <g className="opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none">
-                      <rect
-                        x={(pIndex === 0 ? x - 15 : x) - 13}
-                        y={noteY - 26}
-                        width="26"
-                        height="16"
-                        rx="4"
-                        fill="rgba(15, 23, 42, 0.95)"
-                        stroke="rgba(139, 92, 246, 0.5)"
-                        strokeWidth="1"
-                      />
-                      <text
-                        x={pIndex === 0 ? x - 15 : x}
-                        y={noteY - 15}
-                        fontSize="9"
-                        fontWeight="bold"
-                        fill="#ddd"
-                        textAnchor="middle"
-                      >
-                        {noteInfo.name}
-                      </text>
-                    </g>
                   )}
                 </g>
               );
