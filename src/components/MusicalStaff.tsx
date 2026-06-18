@@ -219,22 +219,12 @@ export const MusicalStaff: React.FC<MusicalStaffProps> = ({
             />
           ))}
 
-          {/* Clef - Bass Clef SVG Group */}
-          <g transform="translate(16, 24)" className="fill-violet-400">
-            {/* The main hook starting dot on 4th line (Y = 36, which relative to group is Y = 12) */}
-            <circle cx="6" cy="12" r="3.5" />
-            {/* Clef curve */}
-            <path
-              d="M 6.5,12 C 12,18 20,13 18,3 C 16,-4 8,-2 5.5,5 C 4.5,8 5,16 6,18 C 7,20 10,24 8,28"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="3.2"
-              strokeLinecap="round"
-            />
-            {/* Two dots in spaces surrounding the F line (3rd and 4th spaces) */}
-            <circle cx="25" cy="6" r="2" />
-            <circle cx="25" cy="18" r="2" />
-          </g>
+          {/* Clef - Professional Bass Clef SVG Path */}
+          <path
+            d="M567 -386c0,29,23,52,52,52s52,-23,52,-52s-23,-52,-52,-52s-52,23,-52,52z m0,250c0,29,23,52,52,52s52,-23,52,-52s-23,-52,-52,-52s-52,23,-52,52z m-323,136 c171,0,292,-86,292,-248c0,-263,-264,-415,-517,-521c-2,-2,-5,-3,-8,-3c-6,0,-11,5,-11,11c0,3,1,6,3,8c203,118,415,265,415,494c0,121,-64,237,-174,237c-79,0,-138,-57,-164,-133 c14,8,28,13,43,13c55,0,100,-45,100,-100c0,-58,-44,-107,-100,-107c-60,0,-112,48,-112,107c0,132,103,242,233,242z"
+            transform="translate(10, 36) scale(0.058, -0.058) translate(0, 261)"
+            className="fill-violet-400"
+          />
 
           {/* Root Note (X = 90) */}
           <g>
