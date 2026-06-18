@@ -7,6 +7,8 @@ import {
 } from './musicTheory';
 
 // A simple test assertion runner
+declare const process: { exit: (code: number) => void };
+
 function assert(condition: boolean, message: string) {
   if (!condition) {
     console.error(`❌ FAIL: ${message}`);
