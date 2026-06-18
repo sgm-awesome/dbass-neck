@@ -5,6 +5,8 @@ import type { ChordType } from '../utils/musicTheory';
 interface SettingsPanelProps {
   showNoteNames: boolean;
   setShowNoteNames: (val: boolean) => void;
+  showRootNotes: boolean;
+  setShowRootNotes: (val: boolean) => void;
   showTapes: boolean;
   setShowTapes: (val: boolean) => void;
   showPositionLines: boolean;
@@ -24,6 +26,8 @@ interface SettingsPanelProps {
 export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   showNoteNames,
   setShowNoteNames,
+  showRootNotes,
+  setShowRootNotes,
   showTapes,
   setShowTapes,
   showPositionLines,
@@ -120,6 +124,19 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               type="checkbox"
               checked={showNoteNames}
               onChange={(e) => setShowNoteNames(e.target.checked)}
+              className="w-4 h-4 rounded text-violet-600 bg-white/10 border-white/20 focus:ring-violet-500 focus:ring-2 focus:ring-offset-0 accent-violet-500"
+            />
+          </label>
+
+          <label className="flex items-center justify-between bg-white/5 p-3 rounded-xl border border-white/5 cursor-pointer hover:bg-white/10 transition-colors">
+            <div className="flex flex-col">
+              <span className="text-sm font-semibold text-slate-200">Show Root Notes</span>
+              <span className="text-xs text-slate-400">Highlight all root note positions on the fingerboard</span>
+            </div>
+            <input
+              type="checkbox"
+              checked={showRootNotes}
+              onChange={(e) => setShowRootNotes(e.target.checked)}
               className="w-4 h-4 rounded text-violet-600 bg-white/10 border-white/20 focus:ring-violet-500 focus:ring-2 focus:ring-offset-0 accent-violet-500"
             />
           </label>

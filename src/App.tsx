@@ -13,6 +13,7 @@ export default function App() {
 
   // Settings State
   const [showNoteNames, setShowNoteNames] = useState(false);
+  const [showRootNotes, setShowRootNotes] = useState(true);
   const [showTapes, setShowTapes] = useState(true);
   const [showPositionLines, setShowPositionLines] = useState(true);
   const [soundVolume, setSoundVolume] = useState(0.6);
@@ -230,6 +231,8 @@ export default function App() {
           <SettingsPanel
             showNoteNames={showNoteNames}
             setShowNoteNames={setShowNoteNames}
+            showRootNotes={showRootNotes}
+            setShowRootNotes={setShowRootNotes}
             showTapes={showTapes}
             setShowTapes={setShowTapes}
             showPositionLines={showPositionLines}
@@ -264,6 +267,7 @@ export default function App() {
             rootNote={currentRoot}
             targetNoteSpelling={targetNoteSpelling}
             showNoteNames={showNoteNames}
+            showRootNotes={showRootNotes}
             showTapes={showTapes}
             showPositionLines={showPositionLines}
             guessedWrongNotes={guessedWrongNotes}

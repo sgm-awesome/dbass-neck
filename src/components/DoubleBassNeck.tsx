@@ -6,6 +6,7 @@ interface DoubleBassNeckProps {
   rootNote: ChordRoot;
   targetNoteSpelling: string; // spelled name to find, e.g., "Eb"
   showNoteNames: boolean;      // settings: show all note names
+  showRootNotes: boolean;      // settings: show root notes
   showTapes: boolean;          // settings: show student tapes
   showPositionLines: boolean;   // settings: show faint fretlines
   guessedWrongNotes: string[];  // notes clicked wrong: "stringIndex_position"
@@ -18,6 +19,7 @@ export const DoubleBassNeck: React.FC<DoubleBassNeckProps> = ({
   rootNote,
   targetNoteSpelling,
   showNoteNames,
+  showRootNotes,
   showTapes,
   showPositionLines,
   guessedWrongNotes,
@@ -350,7 +352,7 @@ export const DoubleBassNeck: React.FC<DoubleBassNeckProps> = ({
               const isCorrectTargetLocation = showAnswer && isCorrectPitchClass(sIndex, pIndex);
               
               // We also want to highlight root notes for structural orientation
-              const isRootLocation = isRootPitchClass(sIndex, pIndex);
+              const isRootLocation = showRootNotes && isRootPitchClass(sIndex, pIndex);
 
               // Colors
               let fill = 'transparent';
