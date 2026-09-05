@@ -16,6 +16,19 @@ export default function App() {
   const [multiNoteIntervals, setMultiNoteIntervals] = useState<string[]>(DEFAULT_MULTI_INTERVALS);
 
   // Settings State
+  const [isSettingsCollapsed, setIsSettingsCollapsed] = useState(() => {
+    const saved = localStorage.getItem('dbass_settings_collapsed');
+    return saved !== null ? saved === 'true' : true;
+  });
+
+  const toggleSettingsCollapsed = () => {
+    setIsSettingsCollapsed(prev => {
+      const next = !prev;
+      localStorage.setItem('dbass_settings_collapsed', String(next));
+      return next;
+    });
+  };
+
   const [showNoteNames, setShowNoteNames] = useState(false);
   const [showRootNotes, setShowRootNotes] = useState(true);
   const [showIntervalNames, setShowIntervalNames] = useState(true);
@@ -285,8 +298,20 @@ export default function App() {
           </p>
         </div>
 
-        {/* Quick controls / Reset */}
+        {/* Quick controls: Settings toggle & Reset */}
         <div className="flex items-center gap-3">
+          <button
+            onClick={toggleSettingsCollapsed}
+            className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-xs font-bold uppercase tracking-wider text-slate-300 hover:text-white transition-all active:scale-95 flex items-center gap-2"
+            title="Toggle Practice Settings"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-violet-400">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.43l-1.003.828c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.43l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+            </svg>
+            <span>{isSettingsCollapsed ? 'Settings' : 'Close'}</span>
+          </button>
+
           <button
             onClick={() => {
               if (window.confirm('Are you sure you want to reset your score?')) {
@@ -303,11 +328,42 @@ export default function App() {
         </div>
       </header>
 
-      {/* Main Grid Layout */}
-      <main className="w-full max-w-6xl grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+      {/* Main Layout Flow */}
+      <main className="w-full max-w-6xl flex flex-col gap-6">
         
-        {/* Left column: Dashboard & notation */}
-        <div className="col-span-1 md:col-span-6 flex flex-col gap-6 w-full">
+        {/* 1. Interactive Fingerboard (Neck) ON TOP */}
+        <section aria-label="Interactive Double Bass Fingerboard" className="w-full bg-white/5 border border-white/10 backdrop-blur-xl p-4 sm:p-6 rounded-3xl shadow-2xl">
+          <div className="flex flex-wrap justify-between items-center border-b border-white/10 pb-3 mb-4 gap-2">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse" />
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200">Interactive Fingerboard (Positions 0 - 12)</h3>
+            </div>
+            <div className="flex flex-wrap gap-3 sm:gap-4 text-[10px] font-semibold text-slate-400">
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-indigo-600 border border-indigo-400" /> Root note</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 border border-emerald-300" /> Correct guess</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-500 border border-rose-300" /> Wrong guess</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-500 border border-yellow-300" /> Answer hint</span>
+            </div>
+          </div>
+
+          <DoubleBassNeck
+            rootNote={currentRoot}
+            targetNoteSpelling={targetNoteSpelling}
+            targetNoteSpellings={multiTargetSpellings}
+            showNoteNames={showNoteNames}
+            showRootNotes={showRootNotes}
+            showTapes={showTapes}
+            showPositionLines={showPositionLines}
+            guessedWrongNotes={guessedWrongNotes}
+            correctNoteClicked={correctNoteClicked}
+            correctNotesClicked={correctNotesClicked}
+            showAnswer={gameState === 'FAILED_SHOW_ANSWER'}
+            onNoteClick={handleNoteClick}
+          />
+        </section>
+
+        {/* 2. Middle Row: Dashboard (left) & Notation Staff (right) */}
+        <section aria-label="Dashboard and Notation" className="w-full grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
           <GameDashboard
             currentRoot={currentRoot}
             currentChordType={currentChordType}
@@ -334,66 +390,35 @@ export default function App() {
             showAnswer={gameState === 'SUCCESS' || gameState === 'FAILED_SHOW_ANSWER'}
             isCorrect={gameState === 'SUCCESS'}
           />
-        </div>
+        </section>
 
-        {/* Right column: Settings */}
-        <div className="col-span-1 md:col-span-6 w-full">
-          <SettingsPanel
-            practiceMode={practiceMode}
-            setPracticeMode={setPracticeMode}
-            multiNoteIntervals={multiNoteIntervals}
-            setMultiNoteIntervals={setMultiNoteIntervals}
-            showNoteNames={showNoteNames}
-            setShowNoteNames={setShowNoteNames}
-            showRootNotes={showRootNotes}
-            setShowRootNotes={setShowRootNotes}
-            showIntervalNames={showIntervalNames}
-            setShowIntervalNames={setShowIntervalNames}
-            showTapes={showTapes}
-            setShowTapes={setShowTapes}
-            showPositionLines={showPositionLines}
-            setShowPositionLines={setShowPositionLines}
-            volume={soundVolume}
-            setVolume={setSoundVolume}
-            isMuted={soundMuted}
-            setIsMuted={setSoundMuted}
-            selectedChordTypes={selectedChordTypes}
-            setSelectedChordTypes={setSelectedChordTypes}
-            selectedIntervals={selectedIntervals}
-            setSelectedIntervals={setSelectedIntervals}
-          />
-        </div>
-
-        {/* Bottom row: The double bass fingerboard */}
-        <div className="col-span-1 md:col-span-12 w-full mt-6 bg-white/5 border border-white/10 backdrop-blur-xl p-6 rounded-3xl shadow-2xl">
-          <div className="flex justify-between items-center border-b border-white/10 pb-3 mb-4">
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse" />
-              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200">Interactive Fingerboard (Positions 0 - 12)</h3>
-            </div>
-            <div className="flex gap-4 text-[10px] font-semibold text-slate-400">
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-indigo-600 border border-indigo-400" /> Root note</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 border border-emerald-300" /> Correct guess</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-500 border border-rose-300" /> Wrong guess</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-500 border border-yellow-300" /> Answer hint</span>
-            </div>
-          </div>
-
-          <DoubleBassNeck
-            rootNote={currentRoot}
-            targetNoteSpelling={targetNoteSpelling}
-            targetNoteSpellings={multiTargetSpellings}
-            showNoteNames={showNoteNames}
-            showRootNotes={showRootNotes}
-            showTapes={showTapes}
-            showPositionLines={showPositionLines}
-            guessedWrongNotes={guessedWrongNotes}
-            correctNoteClicked={correctNoteClicked}
-            correctNotesClicked={correctNotesClicked}
-            showAnswer={gameState === 'FAILED_SHOW_ANSWER'}
-            onNoteClick={handleNoteClick}
-          />
-        </div>
+        {/* 3. Bottom Row: Practice Settings (Collapsible) */}
+        <SettingsPanel
+          isCollapsed={isSettingsCollapsed}
+          onToggleCollapse={toggleSettingsCollapsed}
+          practiceMode={practiceMode}
+          setPracticeMode={setPracticeMode}
+          multiNoteIntervals={multiNoteIntervals}
+          setMultiNoteIntervals={setMultiNoteIntervals}
+          showNoteNames={showNoteNames}
+          setShowNoteNames={setShowNoteNames}
+          showRootNotes={showRootNotes}
+          setShowRootNotes={setShowRootNotes}
+          showIntervalNames={showIntervalNames}
+          setShowIntervalNames={setShowIntervalNames}
+          showTapes={showTapes}
+          setShowTapes={setShowTapes}
+          showPositionLines={showPositionLines}
+          setShowPositionLines={setShowPositionLines}
+          volume={soundVolume}
+          setVolume={setSoundVolume}
+          isMuted={soundMuted}
+          setIsMuted={setSoundMuted}
+          selectedChordTypes={selectedChordTypes}
+          setSelectedChordTypes={setSelectedChordTypes}
+          selectedIntervals={selectedIntervals}
+          setSelectedIntervals={setSelectedIntervals}
+        />
 
       </main>
 
