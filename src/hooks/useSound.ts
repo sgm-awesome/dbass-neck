@@ -4,6 +4,7 @@ export interface SoundControls {
   playNote: (midiPitch: number) => void;
   playSuccess: () => void;
   playFailure: () => void;
+  playFoundNote: () => void;
   setVolume: (vol: number) => void;
   setMuted: (muted: boolean) => void;
 }
@@ -146,6 +147,41 @@ export const useSound = (): SoundControls => {
     }
   }, []);
 
+  // Play intermediate progress chime (found one note in multi-note practice)
+  const playFoundNote = useCallback(() => {
+    try {
+      initAudio();
+      const ctx = audioCtxRef.current;
+      const mainVolume = volumeNodeRef.current;
+      
+      if (!ctx || !mainVolume || isMutedRef.current) return;
+
+      const now = ctx.currentTime;
+      const pitches = [79, 84]; // G5, C6
+      
+      pitches.forEach((pitch, index) => {
+        const time = now + index * 0.07;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(midiToFreq(pitch), time);
+
+        gain.gain.setValueAtTime(0, time);
+        gain.gain.linearRampToValueAtTime(0.25, time + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.3);
+
+        osc.connect(gain);
+        gain.connect(mainVolume);
+
+        osc.start(time);
+        osc.stop(time + 0.35);
+      });
+    } catch (e) {
+      console.warn("Failed to play found note sound:", e);
+    }
+  }, []);
+
   // Play failure sound
   const playFailure = useCallback(() => {
     try {
@@ -208,6 +244,7 @@ export const useSound = (): SoundControls => {
     playNote,
     playSuccess,
     playFailure,
+    playFoundNote,
     setVolume,
     setMuted,
   };

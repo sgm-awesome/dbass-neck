@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { CHORD_ROOTS, getNoteSpelling } from './utils/musicTheory';
-import type { ChordRoot, ChordType } from './utils/musicTheory';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { CHORD_ROOTS, getNoteSpelling, DEFAULT_MULTI_INTERVALS } from './utils/musicTheory';
+import type { ChordRoot, ChordType, PracticeMode } from './utils/musicTheory';
 import { useSound } from './hooks/useSound';
 import { GameDashboard } from './components/GameDashboard';
 import { MusicalStaff } from './components/MusicalStaff';
@@ -9,7 +9,11 @@ import { SettingsPanel } from './components/SettingsPanel';
 
 export default function App() {
   // Sound Synthesis Hook
-  const { playNote, playSuccess, playFailure, setVolume, setMuted } = useSound();
+  const { playNote, playSuccess, playFailure, playFoundNote, setVolume, setMuted } = useSound();
+
+  // Practice Mode State
+  const [practiceMode, setPracticeMode] = useState<PracticeMode>('single');
+  const [multiNoteIntervals, setMultiNoteIntervals] = useState<string[]>(DEFAULT_MULTI_INTERVALS);
 
   // Settings State
   const [showNoteNames, setShowNoteNames] = useState(false);
@@ -30,6 +34,10 @@ export default function App() {
   const [currentInterval, setCurrentInterval] = useState<string>('III');
   const [targetNoteSpelling, setTargetNoteSpelling] = useState<string>('Eb');
 
+  // Multi-note progress tracking
+  const [foundIntervals, setFoundIntervals] = useState<string[]>([]);
+  const [correctNotesClicked, setCorrectNotesClicked] = useState<string[]>([]);
+
   const [gameState, setGameState] = useState<'GUESSING' | 'SUCCESS' | 'TRY_AGAIN' | 'FAILED_SHOW_ANSWER'>('GUESSING');
   const [guessedWrongNotes, setGuessedWrongNotes] = useState<string[]>([]);
   const [correctNoteClicked, setCorrectNoteClicked] = useState<string | null>(null);
@@ -47,6 +55,12 @@ export default function App() {
   // Auto-advance timer reference
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Target note spellings for multi-note matching and display
+  const multiTargetSpellings = useMemo(() => {
+    if (practiceMode !== 'multi') return [targetNoteSpelling];
+    return multiNoteIntervals.map(interval => getNoteSpelling(currentRoot, currentChordType, interval));
+  }, [practiceMode, multiNoteIntervals, currentRoot, currentChordType, targetNoteSpelling]);
+
   // Sync volume with synthesizer
   useEffect(() => {
     setVolume(soundVolume);
@@ -56,7 +70,7 @@ export default function App() {
     setMuted(soundMuted);
   }, [soundMuted, setMuted]);
 
-  // Generate a new interval prompt
+  // Generate a new interval / chord prompt
   const generateQuestion = useCallback(() => {
     // Clear any pending timers
     if (timerRef.current) {
@@ -71,24 +85,38 @@ export default function App() {
     const activeChordTypes = selectedChordTypes.length > 0 ? selectedChordTypes : (['min7'] as ChordType[]);
     const randomChordType = activeChordTypes[Math.floor(Math.random() * activeChordTypes.length)];
 
-    // Pick a random interval from selected
-    const activeIntervals = selectedIntervals.length > 0 ? selectedIntervals : ['III'];
-    const randomInterval = activeIntervals[Math.floor(Math.random() * activeIntervals.length)];
+    if (practiceMode === 'multi') {
+      const activeMulti = multiNoteIntervals.length > 0 ? multiNoteIntervals : DEFAULT_MULTI_INTERVALS;
+      const firstInt = activeMulti[0] || 'III';
+      const firstSpelling = getNoteSpelling(randomRoot, randomChordType, firstInt);
 
-    const targetSpelling = getNoteSpelling(randomRoot, randomChordType, randomInterval);
+      setCurrentRoot(randomRoot);
+      setCurrentChordType(randomChordType);
+      setCurrentInterval(firstInt);
+      setTargetNoteSpelling(firstSpelling);
+      setFoundIntervals([]);
+      setCorrectNotesClicked([]);
+    } else {
+      // Single interval mode
+      const activeIntervals = selectedIntervals.length > 0 ? selectedIntervals : ['III'];
+      const randomInterval = activeIntervals[Math.floor(Math.random() * activeIntervals.length)];
+      const targetSpelling = getNoteSpelling(randomRoot, randomChordType, randomInterval);
 
-    setCurrentRoot(randomRoot);
-    setCurrentChordType(randomChordType);
-    setCurrentInterval(randomInterval);
-    setTargetNoteSpelling(targetSpelling);
+      setCurrentRoot(randomRoot);
+      setCurrentChordType(randomChordType);
+      setCurrentInterval(randomInterval);
+      setTargetNoteSpelling(targetSpelling);
+      setFoundIntervals([]);
+      setCorrectNotesClicked([]);
+    }
 
     // Reset interaction state
     setGameState('GUESSING');
     setGuessedWrongNotes([]);
     setCorrectNoteClicked(null);
-  }, [selectedChordTypes, selectedIntervals]);
+  }, [selectedChordTypes, selectedIntervals, practiceMode, multiNoteIntervals]);
 
-  // Generate initial question
+  // Generate initial question or regenerate when mode changes
   useEffect(() => {
     generateQuestion();
     return () => {
@@ -107,60 +135,134 @@ export default function App() {
     const clickKey = `${stringIndex}_${position}`;
     // Extract base pitch class (C=0, C#/Db=1, etc.)
     const cleanNote = noteName.replace(/[2-4]/g, '');
-    const cleanTarget = targetNoteSpelling.replace(/[2-4]/g, '');
 
-    const isMatch = cleanNote === cleanTarget;
-
-    if (isMatch) {
-      // SUCCESS!
-      setCorrectNoteClicked(clickKey);
-      setGameState('SUCCESS');
-      playSuccess();
-
-      // Score logic
-      const isFirstTry = guessedWrongNotes.length === 0;
-      const points = isFirstTry ? 10 : 5;
-      
-      setScore(prev => {
-        const newScore = prev + points;
-        if (newScore > highScore) {
-          setHighScore(newScore);
-          localStorage.setItem('dbass_highscore', newScore.toString());
-        }
-        return newScore;
+    if (practiceMode === 'multi') {
+      // Multi-note mode: check if note matches ANY of the target chord tone intervals
+      const matchingTarget = multiNoteIntervals.find(interval => {
+        const spelling = getNoteSpelling(currentRoot, currentChordType, interval);
+        return cleanNote === spelling.replace(/[2-4]/g, '');
       });
 
-      if (isFirstTry) {
-        setStreak(prev => prev + 1);
-        setCorrectAnswers(prev => prev + 1);
-      }
-      setTotalAttempts(prev => prev + 1);
+      if (matchingTarget) {
+        // If this interval was already found, don't penalize
+        if (foundIntervals.includes(matchingTarget)) {
+          return;
+        }
 
-      // Auto-advance after 1.8 seconds
-      timerRef.current = setTimeout(() => {
-        generateQuestion();
-      }, 1800);
+        const nextFound = [...foundIntervals, matchingTarget];
+        setFoundIntervals(nextFound);
+        setCorrectNotesClicked(prev => (prev.includes(clickKey) ? prev : [...prev, clickKey]));
 
-    } else {
-      // WRONG ANSWER
-      playFailure();
-      setStreak(0);
+        // Check if all chord tones found
+        if (nextFound.length >= multiNoteIntervals.length) {
+          // Completed the chord!
+          setGameState('SUCCESS');
+          playSuccess();
 
-      // Check if first failure or second
-      if (guessedWrongNotes.length === 0) {
-        // First try failure -> allow second chance
-        setGuessedWrongNotes([clickKey]);
-        setGameState('TRY_AGAIN');
+          const isClean = guessedWrongNotes.length === 0;
+          const points = isClean ? 25 : 15;
+
+          setScore(prev => {
+            const newScore = prev + points;
+            if (newScore > highScore) {
+              setHighScore(newScore);
+              localStorage.setItem('dbass_highscore', newScore.toString());
+            }
+            return newScore;
+          });
+
+          if (isClean) {
+            setStreak(prev => prev + 1);
+            setCorrectAnswers(prev => prev + 1);
+          }
+          setTotalAttempts(prev => prev + 1);
+
+          // Auto-advance after 2.2 seconds
+          timerRef.current = setTimeout(() => {
+            generateQuestion();
+          }, 2200);
+        } else {
+          // Play chime for note found
+          playFoundNote();
+        }
       } else {
-        // Second try failure -> show answer
-        setGuessedWrongNotes(prev => [...prev, clickKey]);
-        setGameState('FAILED_SHOW_ANSWER');
+        // Wrong note for this chord
+        playFailure();
+        setStreak(0);
+
+        if (guessedWrongNotes.length === 0) {
+          // First try failure -> allow second chance
+          setGuessedWrongNotes([clickKey]);
+          setGameState('TRY_AGAIN');
+        } else {
+          // Second try failure -> show answer
+          setGuessedWrongNotes(prev => [...prev, clickKey]);
+          setGameState('FAILED_SHOW_ANSWER');
+          setTotalAttempts(prev => prev + 1);
+
+          // Auto-advance after 4 seconds
+          timerRef.current = setTimeout(() => {
+            generateQuestion();
+          }, 4000);
+        }
+      }
+    } else {
+      // Single Mode
+      const cleanTarget = targetNoteSpelling.replace(/[2-4]/g, '');
+      const isMatch = cleanNote === cleanTarget;
+
+      if (isMatch) {
+        // SUCCESS!
+        setCorrectNoteClicked(clickKey);
+        setCorrectNotesClicked([clickKey]);
+        setGameState('SUCCESS');
+        playSuccess();
+
+        // Score logic
+        const isFirstTry = guessedWrongNotes.length === 0;
+        const points = isFirstTry ? 10 : 5;
+        
+        setScore(prev => {
+          const newScore = prev + points;
+          if (newScore > highScore) {
+            setHighScore(newScore);
+            localStorage.setItem('dbass_highscore', newScore.toString());
+          }
+          return newScore;
+        });
+
+        if (isFirstTry) {
+          setStreak(prev => prev + 1);
+          setCorrectAnswers(prev => prev + 1);
+        }
         setTotalAttempts(prev => prev + 1);
 
-        // Auto-advance after 3.5 seconds so user can see correct answers
+        // Auto-advance after 1.8 seconds
         timerRef.current = setTimeout(() => {
           generateQuestion();
-        }, 3500);
+        }, 1800);
+
+      } else {
+        // WRONG ANSWER
+        playFailure();
+        setStreak(0);
+
+        // Check if first failure or second
+        if (guessedWrongNotes.length === 0) {
+          // First try failure -> allow second chance
+          setGuessedWrongNotes([clickKey]);
+          setGameState('TRY_AGAIN');
+        } else {
+          // Second try failure -> show answer
+          setGuessedWrongNotes(prev => [...prev, clickKey]);
+          setGameState('FAILED_SHOW_ANSWER');
+          setTotalAttempts(prev => prev + 1);
+
+          // Auto-advance after 3.5 seconds so user can see correct answers
+          timerRef.current = setTimeout(() => {
+            generateQuestion();
+          }, 3500);
+        }
       }
     }
   };
@@ -179,7 +281,7 @@ export default function App() {
             Double Bass Interval Trainer
           </h1>
           <p className="text-xs text-slate-400 mt-1 max-w-lg font-medium">
-            Learn and master bass intervals. Select chord types and intervals, watch the root note highlight, and click the correct matching pitch class on the neck!
+            Learn and master bass intervals and chord arpeggios. Switch between Single Interval and Multi-Note chord tone practice!
           </p>
         </div>
 
@@ -211,6 +313,10 @@ export default function App() {
             currentChordType={currentChordType}
             currentInterval={currentInterval}
             showIntervalNames={showIntervalNames}
+            practiceMode={practiceMode}
+            targetIntervals={multiNoteIntervals}
+            foundIntervals={foundIntervals}
+            onModeChange={setPracticeMode}
             gameState={gameState}
             score={score}
             streak={streak}
@@ -223,6 +329,8 @@ export default function App() {
             rootNote={currentRoot}
             chordType={currentChordType}
             targetInterval={currentInterval}
+            targetIntervals={practiceMode === 'multi' ? multiNoteIntervals : undefined}
+            foundIntervals={foundIntervals}
             showAnswer={gameState === 'SUCCESS' || gameState === 'FAILED_SHOW_ANSWER'}
             isCorrect={gameState === 'SUCCESS'}
           />
@@ -231,6 +339,10 @@ export default function App() {
         {/* Right column: Settings */}
         <div className="col-span-1 md:col-span-6 w-full">
           <SettingsPanel
+            practiceMode={practiceMode}
+            setPracticeMode={setPracticeMode}
+            multiNoteIntervals={multiNoteIntervals}
+            setMultiNoteIntervals={setMultiNoteIntervals}
             showNoteNames={showNoteNames}
             setShowNoteNames={setShowNoteNames}
             showRootNotes={showRootNotes}
@@ -270,12 +382,14 @@ export default function App() {
           <DoubleBassNeck
             rootNote={currentRoot}
             targetNoteSpelling={targetNoteSpelling}
+            targetNoteSpellings={multiTargetSpellings}
             showNoteNames={showNoteNames}
             showRootNotes={showRootNotes}
             showTapes={showTapes}
             showPositionLines={showPositionLines}
             guessedWrongNotes={guessedWrongNotes}
             correctNoteClicked={correctNoteClicked}
+            correctNotesClicked={correctNotesClicked}
             showAnswer={gameState === 'FAILED_SHOW_ANSWER'}
             onNoteClick={handleNoteClick}
           />

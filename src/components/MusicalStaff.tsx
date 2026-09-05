@@ -5,7 +5,9 @@ import type { ChordRoot, ChordType } from '../utils/musicTheory';
 interface MusicalStaffProps {
   rootNote: ChordRoot;
   chordType: ChordType;
-  targetInterval: string;
+  targetInterval?: string;
+  targetIntervals?: string[];
+  foundIntervals?: string[];
   showAnswer: boolean;
   isCorrect: boolean;
 }
@@ -109,18 +111,14 @@ export const MusicalStaff: React.FC<MusicalStaffProps> = ({
   rootNote,
   chordType,
   targetInterval,
+  targetIntervals,
+  foundIntervals = [],
   showAnswer,
   isCorrect,
 }) => {
   const rootSpelledName = getRootWrittenSpelling(rootNote);
-  const targetNoteName = getNoteSpelling(rootNote, chordType, targetInterval);
-  const targetSpelledName = getTargetWrittenSpelling(rootNote, chordType, targetInterval, rootSpelledName);
-
   const parsedRoot = parseNoteName(rootSpelledName);
-  const parsedTarget = parseNoteName(targetSpelledName);
-
   const rootStep = getDiatonicStep(parsedRoot);
-  const targetStep = getDiatonicStep(parsedTarget);
 
   // Y-coordinate reference: Middle C (C4) is step 0, Y = 12px
   // Each step is 6px (so staff lines spaced by 12px)
@@ -129,7 +127,43 @@ export const MusicalStaff: React.FC<MusicalStaffProps> = ({
   const getY = (step: number) => Y_REF - step * STEP_H;
 
   const rootY = getY(rootStep);
-  const targetY = getY(targetStep);
+
+  const activeIntervals = targetIntervals && targetIntervals.length > 0
+    ? targetIntervals
+    : (targetInterval ? [targetInterval] : ['III']);
+
+  const isMulti = activeIntervals.length > 1;
+  const rootX = isMulti ? 55 : 90;
+
+  // Prepare target notes info
+  const targetNoteItems = activeIntervals.map((interval, index) => {
+    const noteName = getNoteSpelling(rootNote, chordType, interval);
+    const spelledName = getTargetWrittenSpelling(rootNote, chordType, interval, rootSpelledName);
+    const parsed = parseNoteName(spelledName);
+    const step = getDiatonicStep(parsed);
+    const noteY = getY(step);
+
+    let x: number;
+    if (!isMulti) {
+      x = 170;
+    } else {
+      const count = activeIntervals.length;
+      x = 105 + (index * (105 / Math.max(1, count - 1)));
+    }
+
+    const isFound = foundIntervals.includes(interval);
+    const isRevealed = isFound || showAnswer;
+
+    return {
+      interval,
+      noteName,
+      parsed,
+      noteY,
+      x,
+      isFound,
+      isRevealed,
+    };
+  });
 
   // Render staff lines (Lines 1 to 5)
   // Line 5 is A3 (step -2). Line 1 is G2 (step -10).
@@ -157,7 +191,7 @@ export const MusicalStaff: React.FC<MusicalStaffProps> = ({
       for (let ly = topStaffY - 12; ly >= noteY - 2; ly -= 12) {
         lines.push(
           <line
-            key={`ledger-up-${ly}`}
+            key={`ledger-up-${ly}-${x}`}
             x1={x - halfW}
             y1={ly}
             x2={x + halfW}
@@ -173,7 +207,7 @@ export const MusicalStaff: React.FC<MusicalStaffProps> = ({
       for (let ly = bottomStaffY + 12; ly <= noteY + 2; ly += 12) {
         lines.push(
           <line
-            key={`ledger-down-${ly}`}
+            key={`ledger-down-${ly}-${x}`}
             x1={x - halfW}
             y1={ly}
             x2={x + halfW}
@@ -226,13 +260,13 @@ export const MusicalStaff: React.FC<MusicalStaffProps> = ({
             className="fill-violet-400"
           />
 
-          {/* Root Note (X = 90) */}
+          {/* Root Note Anchor */}
           <g>
-            {renderLedgerLines(rootY, 90)}
+            {renderLedgerLines(rootY, rootX)}
             {/* Accidental */}
             {parsedRoot.accidental && (
               <text
-                x="72"
+                x={rootX - 18}
                 y={rootY + 5}
                 className="fill-indigo-300 font-serif font-medium"
                 fontSize="20"
@@ -243,16 +277,16 @@ export const MusicalStaff: React.FC<MusicalStaffProps> = ({
             )}
             {/* Notehead (slanted ellipse) */}
             <ellipse
-              cx="90"
+              cx={rootX}
               cy={rootY}
               rx="6.5"
               ry="4.5"
-              transform={`rotate(-15, 90, ${rootY})`}
+              transform={`rotate(-15, ${rootX}, ${rootY})`}
               className="fill-indigo-400 stroke-indigo-200 stroke-[1]"
             />
             {/* Root text tag */}
             <text
-              x="90"
+              x={rootX}
               y="92"
               className="fill-indigo-300/80 font-semibold tracking-wider"
               fontSize="9"
@@ -262,76 +296,87 @@ export const MusicalStaff: React.FC<MusicalStaffProps> = ({
             </text>
           </g>
 
-          {/* Target Note (X = 170) */}
-          <g>
-            {showAnswer ? (
-              <>
-                {renderLedgerLines(targetY, 170)}
-                {/* Accidental */}
-                {parsedTarget.accidental && (
-                  <text
-                    x="152"
-                    y={targetY + 5}
-                    className={`font-serif font-medium ${isCorrect ? 'fill-emerald-400' : 'fill-rose-400'}`}
-                    fontSize="20"
-                    textAnchor="middle"
-                  >
-                    {formatAccidental(parsedTarget.accidental)}
-                  </text>
+          {/* Target Note(s) */}
+          {targetNoteItems.map((item) => {
+            const noteColorClass = item.isFound
+              ? 'fill-emerald-400 stroke-emerald-200'
+              : (isCorrect ? 'fill-emerald-400 stroke-emerald-200' : 'fill-amber-400 stroke-amber-200');
+            const textTextColorClass = item.isFound
+              ? 'fill-emerald-400'
+              : (isCorrect ? 'fill-emerald-400' : 'fill-amber-400');
+
+            return (
+              <g key={`staff-target-${item.interval}`}>
+                {item.isRevealed ? (
+                  <>
+                    {renderLedgerLines(item.noteY, item.x)}
+                    {/* Accidental */}
+                    {item.parsed.accidental && (
+                      <text
+                        x={item.x - 16}
+                        y={item.noteY + 5}
+                        className={`font-serif font-medium ${textTextColorClass}`}
+                        fontSize="18"
+                        textAnchor="middle"
+                      >
+                        {formatAccidental(item.parsed.accidental)}
+                      </text>
+                    )}
+                    {/* Notehead */}
+                    <ellipse
+                      cx={item.x}
+                      cy={item.noteY}
+                      rx="6.5"
+                      ry="4.5"
+                      transform={`rotate(-15, ${item.x}, ${item.noteY})`}
+                      className={`${noteColorClass} stroke-[1]`}
+                    />
+                    <text
+                      x={item.x}
+                      y="92"
+                      className={`font-bold tracking-wider ${textTextColorClass}`}
+                      fontSize={isMulti ? '8.5' : '10'}
+                      textAnchor="middle"
+                    >
+                      {item.noteName}
+                    </text>
+                  </>
+                ) : (
+                  <>
+                    {/* Question Mark Notehead */}
+                    <g transform={`translate(${item.x - 10}, ${item.noteY - 14})`}>
+                      <ellipse
+                        cx="10"
+                        cy="14"
+                        rx="7"
+                        ry="5"
+                        transform="rotate(-15, 10, 14)"
+                        className="fill-none stroke-violet-400/40 stroke-[1.5] stroke-dasharray-[2]"
+                      />
+                      <text
+                        x="10"
+                        y="18"
+                        className="fill-violet-400 font-bold"
+                        fontSize="14"
+                        textAnchor="middle"
+                      >
+                        ?
+                      </text>
+                    </g>
+                    <text
+                      x={item.x}
+                      y="92"
+                      className="fill-violet-400/50 font-bold tracking-wider"
+                      fontSize={isMulti ? '8.5' : '10'}
+                      textAnchor="middle"
+                    >
+                      {item.interval}
+                    </text>
+                  </>
                 )}
-                {/* Notehead */}
-                <ellipse
-                  cx="170"
-                  cy={targetY}
-                  rx="6.5"
-                  ry="4.5"
-                  transform={`rotate(-15, 170, ${targetY})`}
-                  className={`${isCorrect ? 'fill-emerald-400 stroke-emerald-200' : 'fill-rose-400 stroke-rose-200'} stroke-[1]`}
-                />
-                <text
-                  x="170"
-                  y="92"
-                  className={`font-bold tracking-wider ${isCorrect ? 'fill-emerald-400' : 'fill-rose-400'}`}
-                  fontSize="10"
-                  textAnchor="middle"
-                >
-                  {targetNoteName}
-                </text>
-              </>
-            ) : (
-              <>
-                {/* Question Mark Notehead */}
-                <g transform={`translate(160, ${targetY - 14})`}>
-                  <ellipse
-                    cx="10"
-                    cy="14"
-                    rx="7"
-                    ry="5"
-                    transform="rotate(-15, 10, 14)"
-                    className="fill-none stroke-violet-400/40 stroke-[1.5] stroke-dasharray-[2]"
-                  />
-                  <text
-                    x="10"
-                    y="18"
-                    className="fill-violet-400 font-bold"
-                    fontSize="14"
-                    textAnchor="middle"
-                  >
-                    ?
-                  </text>
-                </g>
-                <text
-                  x="170"
-                  y="92"
-                  className="fill-violet-400/50 font-bold tracking-wider"
-                  fontSize="10"
-                  textAnchor="middle"
-                >
-                  {targetInterval}
-                </text>
-              </>
-            )}
-          </g>
+              </g>
+            );
+          })}
         </svg>
       </div>
     </div>

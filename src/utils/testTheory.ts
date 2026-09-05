@@ -3,7 +3,8 @@ import {
   getIntervalOffset, 
   getIntervalName, 
   getPitchClass, 
-  getNoteSpellingForMidi 
+  getNoteSpellingForMidi,
+  getMultiTargetItems 
 } from './musicTheory';
 
 // A simple test assertion runner
@@ -52,5 +53,12 @@ assert(getNoteSpellingForMidi(40, 'flat') === 'E', 'MIDI 40 spelling is E');
 assert(getNoteSpellingForMidi(41, 'flat') === 'F', 'MIDI 41 spelling is F');
 assert(getNoteSpellingForMidi(46, 'flat') === 'Bb', 'MIDI 46 spelling (flat pref) is Bb');
 assert(getNoteSpellingForMidi(46, 'sharp') === 'A#', 'MIDI 46 spelling (sharp pref) is A#');
+
+// 6. Check multi-target chord tones helper
+const multiItems = getMultiTargetItems('C', 'min7', ['III', 'V', 'VII']);
+assert(multiItems.length === 3, 'Multi items should have 3 tones');
+assert(multiItems[0].spelling === 'Eb' && multiItems[0].interval === 'III', 'C min7 3rd should be Eb');
+assert(multiItems[1].spelling === 'G' && multiItems[1].interval === 'V', 'C min7 5th should be G');
+assert(multiItems[2].spelling === 'Bb' && multiItems[2].interval === 'VII', 'C min7 7th should be Bb');
 
 console.log('All music theory tests passed successfully! 🎹🎉');

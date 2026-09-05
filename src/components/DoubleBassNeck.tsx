@@ -4,13 +4,15 @@ import type { ChordRoot } from '../utils/musicTheory';
 
 interface DoubleBassNeckProps {
   rootNote: ChordRoot;
-  targetNoteSpelling: string; // spelled name to find, e.g., "Eb"
+  targetNoteSpelling?: string; // single mode (for backward compat)
+  targetNoteSpellings?: string[]; // multi mode array
   showNoteNames: boolean;      // settings: show all note names
   showRootNotes: boolean;      // settings: show root notes
   showTapes: boolean;          // settings: show student tapes
   showPositionLines: boolean;   // settings: show faint fretlines
   guessedWrongNotes: string[];  // notes clicked wrong: "stringIndex_position"
-  correctNoteClicked: string | null; // "stringIndex_position" if correct note found
+  correctNoteClicked?: string | null; // "stringIndex_position" if correct note found
+  correctNotesClicked?: string[]; // array of keys "stringIndex_position" if multiple found
   showAnswer: boolean;         // highlight correct note location(s)
   onNoteClick: (stringIndex: number, position: number, midiPitch: number, noteName: string) => void;
 }
@@ -18,12 +20,14 @@ interface DoubleBassNeckProps {
 export const DoubleBassNeck: React.FC<DoubleBassNeckProps> = ({
   rootNote,
   targetNoteSpelling,
+  targetNoteSpellings,
   showNoteNames,
   showRootNotes,
   showTapes,
   showPositionLines,
   guessedWrongNotes,
   correctNoteClicked,
+  correctNotesClicked,
   showAnswer,
   onNoteClick,
 }) => {
@@ -74,12 +78,20 @@ export const DoubleBassNeck: React.FC<DoubleBassNeckProps> = ({
     return topY + padding + stringIndex * spacing;
   };
 
+  // Effective targets list
+  const activeTargets = useMemo(() => {
+    if (targetNoteSpellings && targetNoteSpellings.length > 0) {
+      return targetNoteSpellings;
+    }
+    return targetNoteSpelling ? [targetNoteSpelling] : [];
+  }, [targetNoteSpellings, targetNoteSpelling]);
+
   // Get note info for a string and position
   const getNoteInfo = (stringIndex: number, position: number) => {
     const stringConfig = BASS_STRINGS[stringIndex];
     const midiWritten = stringConfig.openMidi + position;
     // spell based on chord context
-    const spelledName = getNoteSpellingForMidi(midiWritten, [rootNote, targetNoteSpelling]);
+    const spelledName = getNoteSpellingForMidi(midiWritten, [rootNote, ...activeTargets]);
     return {
       midi: midiWritten,
       name: spelledName,
@@ -90,10 +102,10 @@ export const DoubleBassNeck: React.FC<DoubleBassNeckProps> = ({
   // Standard student tapes: 3rd position, 5th, 7th, 9th, 12th
   const tapePositions = [3, 5, 7, 9, 12];
 
-  // Check if a note is a correct answer (matching pitch class of the target note)
+  // Check if a note is a correct answer (matching pitch class of any target note)
   const isCorrectPitchClass = (stringIndex: number, position: number) => {
     const noteInfo = getNoteInfo(stringIndex, position);
-    return getPitchClass(noteInfo.name) === getPitchClass(targetNoteSpelling);
+    return activeTargets.some(target => getPitchClass(noteInfo.name) === getPitchClass(target));
   };
 
   // Check if a note is a root note
@@ -346,7 +358,8 @@ export const DoubleBassNeck: React.FC<DoubleBassNeckProps> = ({
 
               // Determine visual styling for this node
               const isWrong = guessedWrongNotes.includes(noteKey);
-              const isCorrectClick = correctNoteClicked === noteKey;
+              const activeCorrectClicks = correctNotesClicked ?? (correctNoteClicked ? [correctNoteClicked] : []);
+              const isCorrectClick = activeCorrectClicks.includes(noteKey);
               
               // If showAnswer is true, we highlight ALL locations of the correct pitch class
               const isCorrectTargetLocation = showAnswer && isCorrectPitchClass(sIndex, pIndex);

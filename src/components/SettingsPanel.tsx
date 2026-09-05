@@ -1,8 +1,13 @@
 import React from 'react';
 import { CHORD_DEFINITIONS } from '../utils/musicTheory';
-import type { ChordType } from '../utils/musicTheory';
+import type { ChordType, PracticeMode } from '../utils/musicTheory';
 
 interface SettingsPanelProps {
+  practiceMode: PracticeMode;
+  setPracticeMode: (mode: PracticeMode) => void;
+  multiNoteIntervals: string[];
+  setMultiNoteIntervals: (intervals: string[]) => void;
+
   showNoteNames: boolean;
   setShowNoteNames: (val: boolean) => void;
   showRootNotes: boolean;
@@ -26,6 +31,11 @@ interface SettingsPanelProps {
 }
 
 export const SettingsPanel: React.FC<SettingsPanelProps> = ({
+  practiceMode,
+  setPracticeMode,
+  multiNoteIntervals,
+  setMultiNoteIntervals,
+
   showNoteNames,
   setShowNoteNames,
   showRootNotes,
@@ -50,6 +60,13 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   
   const allIntervals = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
 
+  const MULTI_PRESETS = [
+    { label: '3rd, 5th & 7th', intervals: ['III', 'V', 'VII'] },
+    { label: 'Triad (1, 3, 5)', intervals: ['I', 'III', 'V'] },
+    { label: 'Full Chord (1, 3, 5, 7)', intervals: ['I', 'III', 'V', 'VII'] },
+    { label: 'Guide Tones (3 & 7)', intervals: ['III', 'VII'] },
+  ];
+
   const toggleChordType = (type: ChordType) => {
     if (selectedChordTypes.includes(type)) {
       // Keep at least one checked
@@ -72,6 +89,17 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     }
   };
 
+  const toggleMultiInterval = (interval: string) => {
+    if (multiNoteIntervals.includes(interval)) {
+      if (multiNoteIntervals.length > 1) {
+        setMultiNoteIntervals(multiNoteIntervals.filter(i => i !== interval));
+      }
+    } else {
+      const order = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
+      setMultiNoteIntervals([...multiNoteIntervals, interval].sort((a, b) => order.indexOf(a) - order.indexOf(b)));
+    }
+  };
+
   return (
     <div className="w-full flex flex-col gap-6 p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xl shadow-2xl transition-all duration-300 hover:border-violet-500/20">
       <div className="flex items-center gap-2 border-b border-white/10 pb-3">
@@ -80,6 +108,44 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
         </svg>
         <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200">Practice Settings</h3>
+      </div>
+
+      {/* Practice Mode Selector */}
+      <div className="flex flex-col gap-2.5">
+        <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Practice Mode</label>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setPracticeMode('single')}
+            className={`p-3 rounded-xl border text-left transition-all flex flex-col gap-1 ${
+              practiceMode === 'single'
+                ? 'bg-violet-600/20 border-violet-500/60 shadow-[0_0_15px_rgba(139,92,246,0.2)] text-violet-100'
+                : 'bg-white/5 border-white/5 text-slate-400 hover:bg-white/10 hover:text-slate-300'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold font-mono">Single Interval</span>
+              <span className={`w-2 h-2 rounded-full ${practiceMode === 'single' ? 'bg-violet-400 shadow-[0_0_8px_#a78bfa]' : 'bg-slate-600'}`} />
+            </div>
+            <span className="text-[11px] text-slate-400 leading-tight">Find 1 target interval per prompt</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setPracticeMode('multi')}
+            className={`p-3 rounded-xl border text-left transition-all flex flex-col gap-1 ${
+              practiceMode === 'multi'
+                ? 'bg-indigo-600/20 border-indigo-500/60 shadow-[0_0_15px_rgba(99,102,241,0.2)] text-indigo-100'
+                : 'bg-white/5 border-white/5 text-slate-400 hover:bg-white/10 hover:text-slate-300'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold font-mono">Multi-Note (Chord)</span>
+              <span className={`w-2 h-2 rounded-full ${practiceMode === 'multi' ? 'bg-indigo-400 shadow-[0_0_8px_#818cf8]' : 'bg-slate-600'}`} />
+            </div>
+            <span className="text-[11px] text-slate-400 leading-tight">Find multiple chord tones (3rd, 5th, 7th...)</span>
+          </button>
+        </div>
       </div>
 
       {/* Volume control */}
@@ -218,28 +284,83 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         </div>
       </div>
 
-      {/* Interval Selection */}
-      <div className="flex flex-col gap-2.5">
-        <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Intervals to Find</label>
-        <div className="grid grid-cols-4 gap-2">
-          {allIntervals.map((interval) => {
-            const isChecked = selectedIntervals.includes(interval);
-            return (
-              <button
-                key={`opt-int-${interval}`}
-                onClick={() => toggleInterval(interval)}
-                className={`py-2 rounded-xl border font-bold text-sm text-center transition-all ${
-                  isChecked
-                    ? 'bg-indigo-600/20 border-indigo-500/50 text-indigo-200 shadow-[0_0_12px_rgba(99,102,241,0.15)]'
-                    : 'bg-white/5 border-white/5 text-slate-400 hover:bg-white/10 hover:text-slate-300'
-                }`}
-              >
-                {interval}
-              </button>
-            );
-          })}
+      {/* Interval / Chord Tone Selection depending on mode */}
+      {practiceMode === 'multi' ? (
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+              Chord Tones to Find (Multi-Note Mode)
+            </label>
+            <span className="text-[11px] text-indigo-400 font-mono font-semibold">
+              {multiNoteIntervals.join(' - ')}
+            </span>
+          </div>
+
+          {/* Quick Presets */}
+          <div className="grid grid-cols-2 gap-2">
+            {MULTI_PRESETS.map(preset => {
+              const isActive = JSON.stringify(multiNoteIntervals) === JSON.stringify(preset.intervals);
+              return (
+                <button
+                  key={preset.label}
+                  type="button"
+                  onClick={() => setMultiNoteIntervals(preset.intervals)}
+                  className={`px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all ${
+                    isActive
+                      ? 'bg-indigo-600/30 border-indigo-400 text-indigo-200 shadow-sm'
+                      : 'bg-white/5 border-white/5 text-slate-400 hover:bg-white/10 hover:text-slate-300'
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Custom tone toggles */}
+          <div className="grid grid-cols-4 gap-2 mt-1">
+            {['I', 'III', 'V', 'VII'].map((interval) => {
+              const isChecked = multiNoteIntervals.includes(interval);
+              return (
+                <button
+                  key={`opt-multi-${interval}`}
+                  type="button"
+                  onClick={() => toggleMultiInterval(interval)}
+                  className={`py-2 rounded-xl border font-bold text-sm text-center transition-all ${
+                    isChecked
+                      ? 'bg-indigo-600/25 border-indigo-500/60 text-indigo-200 shadow-[0_0_12px_rgba(99,102,241,0.2)]'
+                      : 'bg-white/5 border-white/5 text-slate-400 hover:bg-white/10 hover:text-slate-300'
+                  }`}
+                >
+                  {interval}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="flex flex-col gap-2.5">
+          <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Intervals to Find (Single Mode)</label>
+          <div className="grid grid-cols-4 gap-2">
+            {allIntervals.map((interval) => {
+              const isChecked = selectedIntervals.includes(interval);
+              return (
+                <button
+                  key={`opt-int-${interval}`}
+                  onClick={() => toggleInterval(interval)}
+                  className={`py-2 rounded-xl border font-bold text-sm text-center transition-all ${
+                    isChecked
+                      ? 'bg-indigo-600/20 border-indigo-500/50 text-indigo-200 shadow-[0_0_12px_rgba(99,102,241,0.15)]'
+                      : 'bg-white/5 border-white/5 text-slate-400 hover:bg-white/10 hover:text-slate-300'
+                  }`}
+                >
+                  {interval}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

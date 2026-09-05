@@ -2,6 +2,16 @@
 
 export type ChordType = 'Maj7' | 'min7' | '7' | 'ø7' | 'o7';
 
+export type PracticeMode = 'single' | 'multi';
+
+export const DEFAULT_MULTI_INTERVALS = ['III', 'V', 'VII'];
+
+export interface MultiTargetItem {
+  interval: string;
+  spelling: string;
+  name: string;
+}
+
 export interface ChordDefinition {
   name: ChordType;
   fullName: string;
@@ -232,6 +242,21 @@ const getSpelledItem = (spelling: string[], interval: string, root: string): str
     default:
       return root;
   }
+};
+
+/**
+ * Returns multi-target items (interval, spelled note, and descriptive name) for given chord and intervals
+ */
+export const getMultiTargetItems = (
+  root: ChordRoot,
+  chordType: ChordType,
+  intervals: string[]
+): MultiTargetItem[] => {
+  return intervals.map(interval => ({
+    interval,
+    spelling: getNoteSpelling(root, chordType, interval),
+    name: getIntervalName(interval, chordType),
+  }));
 };
 
 /**
