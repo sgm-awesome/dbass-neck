@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { detectPitchFromBuffer } from '../utils/pitchDetection';
+import { detectPitchFromBuffer, computeRMS } from '../utils/pitchDetection';
 import type { DetectedPitch } from '../utils/pitchDetection';
 
 export interface UsePitchDetectionOptions {
@@ -35,6 +35,7 @@ export const usePitchDetection = (options?: UsePitchDetectionOptions): PitchDete
   const candidateFramesRef = useRef<number>(0);
   const lastEmittedMidiRef = useRef<number | null>(null);
   const lastEmitTimeRef = useRef<number>(0);
+  const lastPitchTimeRef = useRef<number>(0);
 
   const optionsRef = useRef(options);
   optionsRef.current = options;
@@ -62,6 +63,7 @@ export const usePitchDetection = (options?: UsePitchDetectionOptions): PitchDete
     lastCandidateMidiRef.current = null;
     candidateFramesRef.current = 0;
     lastEmittedMidiRef.current = null;
+    lastPitchTimeRef.current = 0;
   }, []);
 
   const startListening = useCallback(async () => {
@@ -111,15 +113,24 @@ export const usePitchDetection = (options?: UsePitchDetectionOptions): PitchDete
         const sampleRate = audioCtxRef.current.sampleRate;
         const preferredSpelling = optionsRef.current?.preferredSpelling;
 
+        // Compute true RMS volume on every frame regardless of pitch detection
+        const rms = computeRMS(buffer);
+        // Map RMS (ambient is ~0.001-0.005, speech/bass ~0.015-0.10) to responsive 0-1 range
+        const instantLevel = Math.min(1, Math.max(0, (rms - 0.002) * 14));
+        setInputLevel(prev => {
+          if (instantLevel > prev) {
+            return instantLevel; // snappy attack
+          }
+          return Math.max(0, prev * 0.88 - 0.012); // smooth release decay
+        });
+
         const detected = detectPitchFromBuffer(buffer, sampleRate, preferredSpelling);
+        const now = performance.now();
 
         if (detected) {
-          // Update level (scale RMS to 0-1)
-          const level = Math.min(1, detected.rms * 6);
-          setInputLevel(level);
           setCurrentPitch(detected);
+          lastPitchTimeRef.current = now;
 
-          const now = performance.now();
           const targetMidi = detected.midi;
 
           // Check pitch stability across frames
@@ -143,13 +154,14 @@ export const usePitchDetection = (options?: UsePitchDetectionOptions): PitchDete
             }
           }
         } else {
-          // Silence or ambient room noise
-          setInputLevel(prev => Math.max(0, prev * 0.85 - 0.02));
-          setCurrentPitch(null);
+          // If no pitch detected for > 350ms, clear current pitch
+          if (now - lastPitchTimeRef.current > 350) {
+            setCurrentPitch(null);
+          }
           lastCandidateMidiRef.current = null;
           candidateFramesRef.current = 0;
           // After 250ms of silence, allow re-triggering the same pitch
-          if (performance.now() - lastEmitTimeRef.current > 250) {
+          if (now - lastEmitTimeRef.current > 250) {
             lastEmittedMidiRef.current = null;
           }
         }

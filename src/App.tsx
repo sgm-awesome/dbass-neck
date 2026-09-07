@@ -3,6 +3,7 @@ import { CHORD_ROOTS, getNoteSpelling, DEFAULT_MULTI_INTERVALS, LIVE_TARGET_INTE
 import type { ChordRoot, ChordType, PracticeMode } from './utils/musicTheory';
 import { useSound } from './hooks/useSound';
 import { usePitchDetection } from './hooks/usePitchDetection';
+import { midiToFreq } from './utils/pitchDetection';
 import type { DetectedPitch } from './utils/pitchDetection';
 import { GameDashboard } from './components/GameDashboard';
 import { MusicalStaff } from './components/MusicalStaff';
@@ -157,6 +158,7 @@ export default function App() {
     setGameState('GUESSING');
     setGuessedWrongNotes([]);
     setCorrectNoteClicked(null);
+    setClickedPitch(null);
   }, [selectedChordTypes, selectedIntervals, practiceMode, multiNoteIntervals]);
 
   // Generate initial question or regenerate when mode changes
@@ -248,7 +250,7 @@ export default function App() {
   const {
     isListening: isLiveListening,
     inputLevel: liveInputLevel,
-    currentPitch: liveCurrentPitch,
+    currentPitch: detectedLivePitch,
     permissionError: livePermissionError,
     startListening: startLiveListening,
     stopListening: stopLiveListening,
@@ -256,6 +258,9 @@ export default function App() {
   } = usePitchDetection({
     onNoteDetected: handleLiveNoteDetected,
   });
+
+  const [clickedPitch, setClickedPitch] = useState<DetectedPitch | null>(null);
+  const liveCurrentPitch = detectedLivePitch ?? clickedPitch;
 
   // Automatically manage microphone when entering or leaving Live Play mode
   useEffect(() => {
@@ -324,6 +329,19 @@ export default function App() {
     if (gameState === 'SUCCESS' || gameState === 'FAILED_SHOW_ANSWER') return;
 
     if (practiceMode === 'live') {
+      // Update tuner with clicked note preview
+      const oct = Math.floor(midiPitch / 12) - 1;
+      setClickedPitch({
+        freq: Math.round(midiToFreq(midiPitch) * 10) / 10,
+        confidence: 1,
+        midi: midiPitch,
+        cents: 0,
+        pitchClass: getPitchClass(cleanNote),
+        noteName: cleanNote,
+        octave: oct,
+        rms: 0.1,
+      });
+
       // Allow fingerboard clicking in live mode as well
       const matchingTarget = LIVE_TARGET_INTERVALS.find(interval => {
         const spelling = getNoteSpelling(currentRoot, currentChordType, interval);
