@@ -6,8 +6,10 @@ import {
   getNoteSpellingForMidi,
   getMultiTargetItems,
   getChordTones,
-  getChordMidis
+  getChordMidis,
+  soundingMidiToNeckMidi
 } from './musicTheory';
+
 
 // A simple test assertion runner
 declare const process: { exit: (code: number) => void };
@@ -143,6 +145,31 @@ const silentBuffer = new Float32Array(bufferSize); // all zeros
 const silentDetected = detectPitchFromBuffer(silentBuffer, sampleRate);
 assert(silentDetected === null, 'Silent buffer should return null');
 
-console.log('All music theory and pitch detection tests passed successfully! 🎹🎉');
+// 10. Check Sounding to Neck Written MIDI Translation (Octave preservation & transposition)
+// Low C (sounding C2 = MIDI 36, ~65.4 Hz) -> Neck Written MIDI 48 (A-string fret 3 / E-string fret 8)
+assert(soundingMidiToNeckMidi(36) === 48, `Low C sounding 36 should map to neck written 48, got ${soundingMidiToNeckMidi(36)}`);
+// High C (sounding C3 = MIDI 48, ~130.8 Hz) -> Neck Written MIDI 60 (G-string fret 5 / D-string fret 10)
+assert(soundingMidiToNeckMidi(48) === 60, `High C sounding 48 should map to neck written 60, got ${soundingMidiToNeckMidi(48)}`);
+// Verify that Low C (48) and High C (60) are completely distinct written MIDIs!
+assert(soundingMidiToNeckMidi(36) !== soundingMidiToNeckMidi(48), 'Low C and High C must map to different neck positions');
+// Open Strings
+assert(soundingMidiToNeckMidi(28) === 40, 'Open E1 sounding 28 maps to written 40');
+assert(soundingMidiToNeckMidi(33) === 45, 'Open A1 sounding 33 maps to written 45');
+assert(soundingMidiToNeckMidi(38) === 50, 'Open D2 sounding 38 maps to written 50');
+assert(soundingMidiToNeckMidi(43) === 55, 'Open G2 sounding 43 maps to written 55');
+assert(soundingMidiToNeckMidi(55) === 67, 'High G3 sounding 55 maps to fret 12 written 67');
+
+// Range folding check (if singer or higher instrument plays)
+assert(soundingMidiToNeckMidi(60) === 60, 'Middle C sounding 60 folds into High C written 60 (range [40..67])');
+assert(soundingMidiToNeckMidi(24) === 48, 'C0 sounding 24 folds into Low C written 48 (range [40..67])');
+
+// PitchClass invariance
+for (let midi = 20; midi <= 80; midi++) {
+  const neck = soundingMidiToNeckMidi(midi);
+  assert(neck % 12 === midi % 12, `Pitch class must be invariant: ${midi} % 12 (${midi % 12}) vs ${neck} % 12 (${neck % 12})`);
+  assert(neck >= 40 && neck <= 67, `Neck MIDI must be within [40, 67]: got ${neck}`);
+}
+
+console.log('All music theory, pitch detection, and octave translation tests passed successfully! 🎹🎉');
 
 

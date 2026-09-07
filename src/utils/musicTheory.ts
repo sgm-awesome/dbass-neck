@@ -393,3 +393,12 @@ export const getNoteSpellingForMidi = (midi: number, preferredSpelling: 'sharp' 
 
   return isFlatPref ? flatMap[pitchClass] : sharpMap[pitchClass];
 };
+
+
+export const soundingMidiToNeckMidi = (soundingMidi: number): number => {
+  let neckMidi = soundingMidi + 12;
+  while (neckMidi < 40) neckMidi += 12;
+  while (neckMidi > 67) neckMidi -= 12;
+  return neckMidi;
+};
+

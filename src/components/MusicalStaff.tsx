@@ -132,6 +132,7 @@ export const MusicalStaff: React.FC<MusicalStaffProps> = ({
     ? targetIntervals
     : (targetInterval ? [targetInterval] : ['III']);
 
+  const hasExplicitRoot = activeIntervals.includes('I');
   const isMulti = activeIntervals.length > 1;
   const rootX = isMulti ? 55 : 90;
 
@@ -146,6 +147,9 @@ export const MusicalStaff: React.FC<MusicalStaffProps> = ({
     let x: number;
     if (!isMulti) {
       x = 170;
+    } else if (hasExplicitRoot) {
+      const count = activeIntervals.length;
+      x = 55 + (index * (155 / Math.max(1, count - 1)));
     } else {
       const count = activeIntervals.length;
       x = 105 + (index * (105 / Math.max(1, count - 1)));
@@ -260,41 +264,43 @@ export const MusicalStaff: React.FC<MusicalStaffProps> = ({
             className="fill-violet-400"
           />
 
-          {/* Root Note Anchor */}
-          <g>
-            {renderLedgerLines(rootY, rootX)}
-            {/* Accidental */}
-            {parsedRoot.accidental && (
+          {/* Root Note Anchor (only when 'I' is not among target intervals) */}
+          {!hasExplicitRoot && (
+            <g>
+              {renderLedgerLines(rootY, rootX)}
+              {/* Accidental */}
+              {parsedRoot.accidental && (
+                <text
+                  x={rootX - 18}
+                  y={rootY + 5}
+                  className="fill-indigo-300 font-serif font-medium"
+                  fontSize="20"
+                  textAnchor="middle"
+                >
+                  {formatAccidental(parsedRoot.accidental)}
+                </text>
+              )}
+              {/* Notehead (slanted ellipse) */}
+              <ellipse
+                cx={rootX}
+                cy={rootY}
+                rx="6.5"
+                ry="4.5"
+                transform={`rotate(-15, ${rootX}, ${rootY})`}
+                className="fill-indigo-400 stroke-indigo-200 stroke-[1]"
+              />
+              {/* Root text tag */}
               <text
-                x={rootX - 18}
-                y={rootY + 5}
-                className="fill-indigo-300 font-serif font-medium"
-                fontSize="20"
+                x={rootX}
+                y="92"
+                className="fill-indigo-300/80 font-semibold tracking-wider"
+                fontSize="9"
                 textAnchor="middle"
               >
-                {formatAccidental(parsedRoot.accidental)}
+                R ({rootNote})
               </text>
-            )}
-            {/* Notehead (slanted ellipse) */}
-            <ellipse
-              cx={rootX}
-              cy={rootY}
-              rx="6.5"
-              ry="4.5"
-              transform={`rotate(-15, ${rootX}, ${rootY})`}
-              className="fill-indigo-400 stroke-indigo-200 stroke-[1]"
-            />
-            {/* Root text tag */}
-            <text
-              x={rootX}
-              y="92"
-              className="fill-indigo-300/80 font-semibold tracking-wider"
-              fontSize="9"
-              textAnchor="middle"
-            >
-              R ({rootNote})
-            </text>
-          </g>
+            </g>
+          )}
 
           {/* Target Note(s) */}
           {targetNoteItems.map((item) => {
@@ -338,7 +344,7 @@ export const MusicalStaff: React.FC<MusicalStaffProps> = ({
                       fontSize={isMulti ? '8.5' : '10'}
                       textAnchor="middle"
                     >
-                      {item.noteName}
+                      {item.interval === 'I' ? `R (${item.noteName})` : item.noteName}
                     </text>
                   </>
                 ) : (

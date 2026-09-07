@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { CHORD_ROOTS, getNoteSpelling, DEFAULT_MULTI_INTERVALS, LIVE_TARGET_INTERVALS, getChordMidis, getChordTones, ROOT_WRITTEN_MIDIS, getPitchClass } from './utils/musicTheory';
+import { CHORD_ROOTS, getNoteSpelling, DEFAULT_MULTI_INTERVALS, LIVE_TARGET_INTERVALS, getChordMidis, getChordTones, ROOT_WRITTEN_MIDIS, getPitchClass, soundingMidiToNeckMidi } from './utils/musicTheory';
 import type { ChordRoot, ChordType, PracticeMode } from './utils/musicTheory';
 import { useSound } from './hooks/useSound';
 import { usePitchDetection } from './hooks/usePitchDetection';
@@ -66,8 +66,9 @@ export default function App() {
   const [currentInterval, setCurrentInterval] = useState<string>('III');
   const [targetNoteSpelling, setTargetNoteSpelling] = useState<string>('Eb');
 
-  // Multi-note progress tracking
+  // Multi-note & Live-play progress tracking
   const [foundIntervals, setFoundIntervals] = useState<string[]>([]);
+  const [foundToneMidis, setFoundToneMidis] = useState<number[]>([]);
   const [correctNotesClicked, setCorrectNotesClicked] = useState<string[]>([]);
 
   const [gameState, setGameState] = useState<'GUESSING' | 'SUCCESS' | 'TRY_AGAIN' | 'FAILED_SHOW_ANSWER'>('GUESSING');
@@ -134,6 +135,7 @@ export default function App() {
       setCurrentInterval(firstInt);
       setTargetNoteSpelling(firstSpelling);
       setFoundIntervals([]);
+      setFoundToneMidis([]);
       setCorrectNotesClicked([]);
     } else if (practiceMode === 'multi') {
       const activeMulti = multiNoteIntervals.length > 0 ? multiNoteIntervals : DEFAULT_MULTI_INTERVALS;
@@ -145,6 +147,7 @@ export default function App() {
       setCurrentInterval(firstInt);
       setTargetNoteSpelling(firstSpelling);
       setFoundIntervals([]);
+      setFoundToneMidis([]);
       setCorrectNotesClicked([]);
     } else {
       // Single interval mode
@@ -157,6 +160,7 @@ export default function App() {
       setCurrentInterval(randomInterval);
       setTargetNoteSpelling(targetSpelling);
       setFoundIntervals([]);
+      setFoundToneMidis([]);
       setCorrectNotesClicked([]);
     }
 
@@ -189,10 +193,13 @@ export default function App() {
     const targetSpelling = getNoteSpelling(currentRoot, currentChordType, currentTargetInterval);
     const targetPitchClass = getPitchClass(targetSpelling);
 
+    // Validate on ANY octave (pitchClass comparison 0-11)
     if (detected.pitchClass === targetPitchClass) {
-      // Right note played on bass!
+      // Map sounding bass pitch to written neck MIDI in positions 0-12
+      const neckMidi = soundingMidiToNeckMidi(detected.midi);
       const nextFound = [...foundIntervals, currentTargetInterval];
       setFoundIntervals(nextFound);
+      setFoundToneMidis(prev => [...prev, neckMidi]);
 
       // Check if all 4 chord tones found
       if (nextFound.length >= targets.length) {
@@ -309,11 +316,13 @@ export default function App() {
 
     if (practiceMode === 'live') {
       // Update tuner with clicked note preview
-      const oct = Math.floor(midiPitch / 12) - 1;
+      // midiPitch from the neck is written MIDI (40-67). Convert to sounding MIDI for double bass.
+      const soundingMidi = midiPitch - 12;
+      const oct = Math.floor(soundingMidi / 12) - 1;
       setClickedPitch({
-        freq: Math.round(midiToFreq(midiPitch) * 10) / 10,
+        freq: Math.round(midiToFreq(soundingMidi) * 10) / 10,
         confidence: 1,
-        midi: midiPitch,
+        midi: soundingMidi,
         cents: 0,
         pitchClass: getPitchClass(cleanNote),
         noteName: cleanNote,
@@ -331,6 +340,7 @@ export default function App() {
         if (getPitchClass(cleanNote) === targetPitchClass) {
           const nextFound = [...foundIntervals, currentTargetInterval];
           setFoundIntervals(nextFound);
+          setFoundToneMidis(prev => [...prev, midiPitch]);
 
           if (nextFound.length >= targets.length) {
             setGameState('SUCCESS');
@@ -587,7 +597,8 @@ export default function App() {
             targetNoteSpelling={targetNoteSpelling}
             targetNoteSpellings={multiTargetSpellings}
             foundIntervals={foundIntervals}
-            livePlayingPitchClass={practiceMode === 'live' ? liveCurrentPitch?.pitchClass : null}
+            foundToneMidis={foundToneMidis}
+            livePlayingMidi={practiceMode === 'live' && liveCurrentPitch ? soundingMidiToNeckMidi(liveCurrentPitch.midi) : null}
             showNoteNames={showNoteNames}
             showRootNotes={showRootNotes}
             showTapes={showTapes}

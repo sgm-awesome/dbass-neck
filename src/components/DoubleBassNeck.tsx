@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { BASS_STRINGS, getNoteSpellingForMidi, getPitchClass, getChordTones, getNoteSpelling } from '../utils/musicTheory';
+import { BASS_STRINGS, getNoteSpellingForMidi, getPitchClass, getChordTones } from '../utils/musicTheory';
 import type { ChordRoot, ChordType, PracticeMode, ChordToneInfo } from '../utils/musicTheory';
 
 interface DoubleBassNeckProps {
@@ -13,7 +13,8 @@ interface DoubleBassNeckProps {
   targetNoteSpelling?: string; // single mode (for backward compat)
   targetNoteSpellings?: string[]; // multi mode array
   foundIntervals?: string[]; // live & multi mode found intervals
-  livePlayingPitchClass?: number | null; // pitch class of note currently sounding on instrument
+  foundToneMidis?: number[]; // exact written neck MIDIs of validated chord tones
+  livePlayingMidi?: number | null; // written MIDI of note currently sounding on instrument
   showNoteNames: boolean;      // settings: show all note names
   showRootNotes: boolean;      // settings: show root notes
   showTapes: boolean;          // settings: show student tapes
@@ -35,8 +36,9 @@ export const DoubleBassNeck: React.FC<DoubleBassNeckProps> = ({
 
   targetNoteSpelling,
   targetNoteSpellings,
-  foundIntervals = [],
-  livePlayingPitchClass = null,
+  foundIntervals: _foundIntervals = [],
+  foundToneMidis = [],
+  livePlayingMidi = null,
   showNoteNames,
   showRootNotes,
   showTapes,
@@ -445,18 +447,15 @@ export const DoubleBassNeck: React.FC<DoubleBassNeckProps> = ({
               const referenceMatch = practiceMode === 'reference' ? getReferenceToneMatch(noteInfo.pitchClass) : null;
               const isLastClicked = activeReferenceClickedKey === noteKey;
 
-              // Live Play Mode tone matching
+              // Live Play Mode tone matching: match by exact written neck MIDI
               const isFoundLiveChordTone = practiceMode === 'live' && Boolean(
-                foundIntervals && foundIntervals.some(interval => {
-                  const spelling = getNoteSpelling(rootNote, currentChordType, interval);
-                  return getPitchClass(spelling) === noteInfo.pitchClass;
-                })
+                foundToneMidis && foundToneMidis.includes(noteInfo.midi)
               );
 
               const isLivePlaying = practiceMode === 'live' &&
-                livePlayingPitchClass !== null &&
-                livePlayingPitchClass !== undefined &&
-                noteInfo.pitchClass === livePlayingPitchClass;
+                livePlayingMidi !== null &&
+                livePlayingMidi !== undefined &&
+                noteInfo.midi === livePlayingMidi;
 
               // Colors
               let fill = 'transparent';
