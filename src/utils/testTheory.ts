@@ -93,5 +93,56 @@ assert(e7Midis[1] === 44, 'E7 3rd should be MIDI 44 (G#2)');
 assert(e7Midis[2] === 47, 'E7 5th should be MIDI 47 (B2)');
 assert(e7Midis[3] === 50, 'E7 7th should be MIDI 50 (D3 open)');
 
-console.log('All music theory tests passed successfully! 🎹🎉');
+// 9. Check Pitch Detection Engine
+import { detectPitchFromBuffer, freqToMidi, midiToNoteDetails } from './pitchDetection';
+
+// Helper to generate a test sine wave buffer
+const generateSineBuffer = (freq: number, sampleRate: number, numSamples: number, amp = 0.5): Float32Array => {
+  const buf = new Float32Array(numSamples);
+  for (let i = 0; i < numSamples; i++) {
+    buf[i] = amp * Math.sin(2 * Math.PI * freq * (i / sampleRate));
+  }
+  return buf;
+};
+
+// 44100 Hz sample rate, 4096 samples (~92ms)
+const sampleRate = 44100;
+const bufferSize = 4096;
+
+// Test A1 = 55 Hz (MIDI 33, pitchClass 9 = A)
+const a1Buffer = generateSineBuffer(55.0, sampleRate, bufferSize);
+const a1Detected = detectPitchFromBuffer(a1Buffer, sampleRate);
+assert(a1Detected !== null, 'Should detect A1 pitch');
+assert(a1Detected!.pitchClass === 9, `A1 pitchClass should be 9 (A), got ${a1Detected?.pitchClass}`);
+assert(a1Detected!.noteName === 'A', `A1 noteName should be A, got ${a1Detected?.noteName}`);
+assert(Math.abs(a1Detected!.freq - 55.0) < 0.5, `A1 freq should be ~55Hz, got ${a1Detected?.freq}`);
+
+// Test D2 = 73.416 Hz (MIDI 38, pitchClass 2 = D)
+const d2Buffer = generateSineBuffer(73.42, sampleRate, bufferSize);
+const d2Detected = detectPitchFromBuffer(d2Buffer, sampleRate);
+assert(d2Detected !== null, 'Should detect D2 pitch');
+assert(d2Detected!.pitchClass === 2, `D2 pitchClass should be 2 (D), got ${d2Detected?.pitchClass}`);
+assert(d2Detected!.noteName === 'D', `D2 noteName should be D, got ${d2Detected?.noteName}`);
+
+// Test G2 = 98.0 Hz (MIDI 43, pitchClass 7 = G)
+const g2Buffer = generateSineBuffer(98.0, sampleRate, bufferSize);
+const g2Detected = detectPitchFromBuffer(g2Buffer, sampleRate);
+assert(g2Detected !== null, 'Should detect G2 pitch');
+assert(g2Detected!.pitchClass === 7, `G2 pitchClass should be 7 (G), got ${g2Detected?.pitchClass}`);
+assert(g2Detected!.noteName === 'G', `G2 noteName should be G, got ${g2Detected?.noteName}`);
+
+// Test Low E1 = 41.2 Hz (MIDI 28, pitchClass 4 = E)
+const e1Buffer = generateSineBuffer(41.2, sampleRate, bufferSize);
+const e1Detected = detectPitchFromBuffer(e1Buffer, sampleRate);
+assert(e1Detected !== null, 'Should detect E1 pitch');
+assert(e1Detected!.pitchClass === 4, `E1 pitchClass should be 4 (E), got ${e1Detected?.pitchClass}`);
+assert(e1Detected!.noteName === 'E', `E1 noteName should be E, got ${e1Detected?.noteName}`);
+
+// Test silence rejection
+const silentBuffer = new Float32Array(bufferSize); // all zeros
+const silentDetected = detectPitchFromBuffer(silentBuffer, sampleRate);
+assert(silentDetected === null, 'Silent buffer should return null');
+
+console.log('All music theory and pitch detection tests passed successfully! 🎹🎉');
+
 

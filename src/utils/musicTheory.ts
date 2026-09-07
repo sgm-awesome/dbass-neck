@@ -2,9 +2,10 @@
 
 export type ChordType = 'Maj7' | 'min7' | '7' | 'ø7' | 'o7';
 
-export type PracticeMode = 'single' | 'multi' | 'reference';
+export type PracticeMode = 'single' | 'multi' | 'reference' | 'live';
 
 export const DEFAULT_MULTI_INTERVALS = ['III', 'V', 'VII'];
+export const LIVE_TARGET_INTERVALS = ['I', 'III', 'V', 'VII'];
 
 export interface MultiTargetItem {
   interval: string;

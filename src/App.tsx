@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { CHORD_ROOTS, getNoteSpelling, DEFAULT_MULTI_INTERVALS, getChordMidis, getChordTones, ROOT_WRITTEN_MIDIS } from './utils/musicTheory';
+import { CHORD_ROOTS, getNoteSpelling, DEFAULT_MULTI_INTERVALS, LIVE_TARGET_INTERVALS, getChordMidis, getChordTones, ROOT_WRITTEN_MIDIS, getPitchClass } from './utils/musicTheory';
 import type { ChordRoot, ChordType, PracticeMode } from './utils/musicTheory';
 import { useSound } from './hooks/useSound';
+import { usePitchDetection } from './hooks/usePitchDetection';
+import type { DetectedPitch } from './utils/pitchDetection';
 import { GameDashboard } from './components/GameDashboard';
 import { MusicalStaff } from './components/MusicalStaff';
 import { DoubleBassNeck } from './components/DoubleBassNeck';
@@ -14,6 +16,7 @@ export default function App() {
   // Practice Mode State
   const [practiceMode, setPracticeMode] = useState<PracticeMode>('single');
   const [multiNoteIntervals, setMultiNoteIntervals] = useState<string[]>(DEFAULT_MULTI_INTERVALS);
+  const [liveErrorsCount, setLiveErrorsCount] = useState(0);
 
   // Reference Mode State
   const [referenceIntervalFilter, setReferenceIntervalFilter] = useState<'all' | 'root' | 'guide' | 'triad'>('all');
@@ -74,8 +77,11 @@ export default function App() {
   // Auto-advance timer reference
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Target note spellings for multi-note matching and display
+  // Target note spellings for multi-note and live-play matching and display
   const multiTargetSpellings = useMemo(() => {
+    if (practiceMode === 'live') {
+      return LIVE_TARGET_INTERVALS.map(interval => getNoteSpelling(currentRoot, currentChordType, interval));
+    }
     if (practiceMode !== 'multi') return [targetNoteSpelling];
     return multiNoteIntervals.map(interval => getNoteSpelling(currentRoot, currentChordType, interval));
   }, [practiceMode, multiNoteIntervals, currentRoot, currentChordType, targetNoteSpelling]);
@@ -109,7 +115,18 @@ export default function App() {
     const activeChordTypes = selectedChordTypes.length > 0 ? selectedChordTypes : (['min7'] as ChordType[]);
     const randomChordType = activeChordTypes[Math.floor(Math.random() * activeChordTypes.length)];
 
-    if (practiceMode === 'multi') {
+    if (practiceMode === 'live') {
+      const firstInt = 'I';
+      const firstSpelling = getNoteSpelling(randomRoot, randomChordType, firstInt);
+
+      setCurrentRoot(randomRoot);
+      setCurrentChordType(randomChordType);
+      setCurrentInterval(firstInt);
+      setTargetNoteSpelling(firstSpelling);
+      setFoundIntervals([]);
+      setCorrectNotesClicked([]);
+      setLiveErrorsCount(0);
+    } else if (practiceMode === 'multi') {
       const activeMulti = multiNoteIntervals.length > 0 ? multiNoteIntervals : DEFAULT_MULTI_INTERVALS;
       const firstInt = activeMulti[0] || 'III';
       const firstSpelling = getNoteSpelling(randomRoot, randomChordType, firstInt);
@@ -120,6 +137,7 @@ export default function App() {
       setTargetNoteSpelling(firstSpelling);
       setFoundIntervals([]);
       setCorrectNotesClicked([]);
+      setLiveErrorsCount(0);
     } else {
       // Single interval mode
       const activeIntervals = selectedIntervals.length > 0 ? selectedIntervals : ['III'];
@@ -132,6 +150,7 @@ export default function App() {
       setTargetNoteSpelling(targetSpelling);
       setFoundIntervals([]);
       setCorrectNotesClicked([]);
+      setLiveErrorsCount(0);
     }
 
     // Reset interaction state
@@ -147,6 +166,105 @@ export default function App() {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, [generateQuestion]);
+
+  // Pitch detection for live play mode
+  const handleLiveNoteDetected = useCallback((detected: DetectedPitch) => {
+    if (practiceMode !== 'live') return;
+    if (gameState === 'SUCCESS' || gameState === 'FAILED_SHOW_ANSWER') return;
+
+    const targets = LIVE_TARGET_INTERVALS;
+
+    // Check if detected pitch matches any target chord tone
+    const matchingTarget = targets.find(interval => {
+      const spelling = getNoteSpelling(currentRoot, currentChordType, interval);
+      const targetPitchClass = getPitchClass(spelling);
+      return detected.pitchClass === targetPitchClass;
+    });
+
+    if (matchingTarget) {
+      // Correct note played on instrument!
+      if (foundIntervals.includes(matchingTarget)) {
+        return;
+      }
+
+      const nextFound = [...foundIntervals, matchingTarget];
+      setFoundIntervals(nextFound);
+
+      // Check if all 4 chord tones found
+      if (nextFound.length >= targets.length) {
+        setGameState('SUCCESS');
+        playSuccess();
+
+        const isClean = liveErrorsCount === 0;
+        const points = isClean ? 30 : 15;
+
+        setScore(prev => {
+          const newScore = prev + points;
+          if (newScore > highScore) {
+            setHighScore(newScore);
+            localStorage.setItem('dbass_highscore', newScore.toString());
+          }
+          return newScore;
+        });
+
+        if (isClean) {
+          setStreak(prev => prev + 1);
+          setCorrectAnswers(prev => prev + 1);
+        }
+        setTotalAttempts(prev => prev + 1);
+
+        // Auto-advance after 2.2 seconds
+        timerRef.current = setTimeout(() => {
+          generateQuestion();
+        }, 2200);
+      } else {
+        // Play chime for note found
+        playFoundNote();
+      }
+    } else {
+      // Wrong note played!
+      playFailure();
+      setStreak(0);
+
+      if (liveErrorsCount === 0) {
+        // First error -> allow second try
+        setLiveErrorsCount(1);
+        setGameState('TRY_AGAIN');
+      } else {
+        // Second error -> show answer on neck and staff
+        setLiveErrorsCount(2);
+        setGameState('FAILED_SHOW_ANSWER');
+        setTotalAttempts(prev => prev + 1);
+
+        // Auto-advance after 4.2 seconds
+        timerRef.current = setTimeout(() => {
+          generateQuestion();
+        }, 4200);
+      }
+    }
+  }, [practiceMode, gameState, currentRoot, currentChordType, foundIntervals, liveErrorsCount, highScore, playSuccess, playFoundNote, playFailure, generateQuestion]);
+
+  // Real-time microphone pitch detection hook
+  const {
+    isListening: isLiveListening,
+    inputLevel: liveInputLevel,
+    currentPitch: liveCurrentPitch,
+    permissionError: livePermissionError,
+    startListening: startLiveListening,
+    stopListening: stopLiveListening,
+    toggleListening: toggleLiveListening,
+  } = usePitchDetection({
+    onNoteDetected: handleLiveNoteDetected,
+  });
+
+  // Automatically manage microphone when entering or leaving Live Play mode
+  useEffect(() => {
+    if (practiceMode === 'live') {
+      startLiveListening();
+    } else {
+      stopLiveListening();
+    }
+  }, [practiceMode, startLiveListening, stopLiveListening]);
 
   // Reference mode audio & chord helpers
   const handlePlayArpeggio = useCallback(() => {
@@ -204,6 +322,70 @@ export default function App() {
 
     // If already solved or shown, ignore further score-altering clicks
     if (gameState === 'SUCCESS' || gameState === 'FAILED_SHOW_ANSWER') return;
+
+    if (practiceMode === 'live') {
+      // Allow fingerboard clicking in live mode as well
+      const matchingTarget = LIVE_TARGET_INTERVALS.find(interval => {
+        const spelling = getNoteSpelling(currentRoot, currentChordType, interval);
+        return cleanNote === spelling.replace(/[2-4]/g, '');
+      });
+
+      if (matchingTarget) {
+        if (foundIntervals.includes(matchingTarget)) return;
+
+        const nextFound = [...foundIntervals, matchingTarget];
+        setFoundIntervals(nextFound);
+        setCorrectNotesClicked(prev => (prev.includes(clickKey) ? prev : [...prev, clickKey]));
+
+        if (nextFound.length >= LIVE_TARGET_INTERVALS.length) {
+          setGameState('SUCCESS');
+          playSuccess();
+
+          const isClean = liveErrorsCount === 0;
+          const points = isClean ? 30 : 15;
+
+          setScore(prev => {
+            const newScore = prev + points;
+            if (newScore > highScore) {
+              setHighScore(newScore);
+              localStorage.setItem('dbass_highscore', newScore.toString());
+            }
+            return newScore;
+          });
+
+          if (isClean) {
+            setStreak(prev => prev + 1);
+            setCorrectAnswers(prev => prev + 1);
+          }
+          setTotalAttempts(prev => prev + 1);
+
+          timerRef.current = setTimeout(() => {
+            generateQuestion();
+          }, 2200);
+        } else {
+          playFoundNote();
+        }
+      } else {
+        playFailure();
+        setStreak(0);
+
+        if (liveErrorsCount === 0) {
+          setLiveErrorsCount(1);
+          setGuessedWrongNotes([clickKey]);
+          setGameState('TRY_AGAIN');
+        } else {
+          setLiveErrorsCount(2);
+          setGuessedWrongNotes(prev => [...prev, clickKey]);
+          setGameState('FAILED_SHOW_ANSWER');
+          setTotalAttempts(prev => prev + 1);
+
+          timerRef.current = setTimeout(() => {
+            generateQuestion();
+          }, 4200);
+        }
+      }
+      return;
+    }
 
     if (practiceMode === 'multi') {
       // Multi-note mode: check if note matches ANY of the target chord tone intervals
@@ -350,7 +532,7 @@ export default function App() {
             Double Bass Interval Trainer
           </h1>
           <p className="text-xs text-slate-400 mt-1 max-w-lg font-medium">
-            Learn and master bass intervals, chord arpeggios, and neck reference. Switch between Single Interval, Multi-Note, and Reference mode!
+            Learn and master bass intervals, chord arpeggios, and live instrument playing. Switch between Single Interval, Multi-Note, Reference, and Live Play mode!
           </p>
         </div>
 
@@ -405,8 +587,8 @@ export default function App() {
               ) : (
                 <>
                   <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-indigo-600 border border-indigo-400 shadow-indigo-glow inline-block shrink-0" /> Root note</span>
-                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500 border border-emerald-300 shadow-emerald-glow inline-block shrink-0" /> Correct guess</span>
-                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-rose-500 border border-rose-300 shadow-rose-glow inline-block shrink-0" /> Wrong guess</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500 border border-emerald-300 shadow-emerald-glow inline-block shrink-0" /> Correct {practiceMode === 'live' ? 'played' : 'guess'}</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-rose-500 border border-rose-300 shadow-rose-glow inline-block shrink-0" /> Wrong note</span>
                   <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-yellow-500 border border-yellow-300 shadow-yellow-glow inline-block shrink-0" /> Answer hint</span>
                 </>
               )}
@@ -442,7 +624,7 @@ export default function App() {
             currentInterval={currentInterval}
             showIntervalNames={showIntervalNames}
             practiceMode={practiceMode}
-            targetIntervals={multiNoteIntervals}
+            targetIntervals={practiceMode === 'live' ? LIVE_TARGET_INTERVALS : multiNoteIntervals}
             foundIntervals={foundIntervals}
             onModeChange={setPracticeMode}
             onRootChange={setCurrentRoot}
@@ -455,6 +637,12 @@ export default function App() {
             onPlaySingleTone={handlePlaySingleTone}
             lastPlayedInfo={lastPlayedInfo}
             onRandomChord={handleRandomChord}
+            isLiveListening={isLiveListening}
+            onToggleLiveListening={toggleLiveListening}
+            liveCurrentPitch={liveCurrentPitch}
+            liveInputLevel={liveInputLevel}
+            livePermissionError={livePermissionError}
+            liveErrorsCount={liveErrorsCount}
             gameState={gameState}
             score={score}
             streak={streak}
@@ -466,8 +654,14 @@ export default function App() {
           <MusicalStaff
             rootNote={currentRoot}
             chordType={currentChordType}
-            targetInterval={practiceMode === 'reference' ? 'III' : currentInterval}
-            targetIntervals={practiceMode === 'reference' ? ['III', 'V', 'VII'] : (practiceMode === 'multi' ? multiNoteIntervals : undefined)}
+            targetInterval={practiceMode === 'reference' || practiceMode === 'live' ? 'III' : currentInterval}
+            targetIntervals={
+              practiceMode === 'reference'
+                ? ['III', 'V', 'VII']
+                : practiceMode === 'live'
+                ? LIVE_TARGET_INTERVALS
+                : (practiceMode === 'multi' ? multiNoteIntervals : undefined)
+            }
             foundIntervals={practiceMode === 'reference' ? ['III', 'V', 'VII'] : foundIntervals}
             showAnswer={practiceMode === 'reference' ? true : (gameState === 'SUCCESS' || gameState === 'FAILED_SHOW_ANSWER')}
             isCorrect={practiceMode === 'reference' ? true : (gameState === 'SUCCESS')}

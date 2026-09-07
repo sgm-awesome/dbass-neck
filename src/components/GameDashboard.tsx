@@ -1,6 +1,7 @@
 import React from 'react';
 import { CHORD_DEFINITIONS, CHORD_ROOTS, getIntervalName, getNoteSpelling, getChordTones } from '../utils/musicTheory';
 import type { ChordRoot, ChordType, PracticeMode } from '../utils/musicTheory';
+import type { DetectedPitch } from '../utils/pitchDetection';
 
 interface GameDashboardProps {
   currentRoot: ChordRoot;
@@ -23,6 +24,14 @@ interface GameDashboardProps {
   onPlaySingleTone?: (spelling: string) => void;
   lastPlayedInfo?: string | null;
   onRandomChord?: () => void;
+
+  // Live mode props
+  isLiveListening?: boolean;
+  onToggleLiveListening?: () => void;
+  liveCurrentPitch?: DetectedPitch | null;
+  liveInputLevel?: number;
+  livePermissionError?: string | null;
+  liveErrorsCount?: number;
   
   gameState: 'GUESSING' | 'SUCCESS' | 'TRY_AGAIN' | 'FAILED_SHOW_ANSWER';
   score: number;
@@ -66,6 +75,14 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
   lastPlayedInfo,
   onRandomChord,
 
+  // Live mode props
+  isLiveListening = false,
+  onToggleLiveListening,
+  liveCurrentPitch,
+  liveInputLevel = 0,
+  livePermissionError,
+  liveErrorsCount = 0,
+
   gameState,
   score,
   streak,
@@ -93,6 +110,34 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
     cardBorderClass = 'border-violet-500/30 shadow-[0_0_25px_rgba(139,92,246,0.12)]';
     cardBgClass = 'bg-violet-950/10';
     glowColor = 'rgba(139, 92, 246, 0.08)';
+  } else if (practiceMode === 'live') {
+    if (gameState === 'SUCCESS') {
+      feedbackText = 'All 4 Notes Played! 🎉';
+      feedbackSubtext = 'Fantastic chord tones! Advancing to next chord...';
+      cardBorderClass = 'border-emerald-500/40 shadow-[0_0_20px_rgba(16,185,129,0.15)]';
+      cardBgClass = 'bg-emerald-950/10';
+      glowColor = 'rgba(16, 185, 129, 0.1)';
+    } else if (gameState === 'TRY_AGAIN') {
+      feedbackText = 'Wrong Note Detected... 🔍';
+      feedbackSubtext = '1 error recorded. Play the right chord note on your bass!';
+      cardBorderClass = 'border-rose-500/40 shadow-[0_0_20px_rgba(244,63,94,0.15)] animate-wobble';
+      cardBgClass = 'bg-rose-950/10';
+      glowColor = 'rgba(244, 63, 94, 0.1)';
+    } else if (gameState === 'FAILED_SHOW_ANSWER') {
+      feedbackText = '2 Errors: Revealing Chord Notes 💡';
+      feedbackSubtext = 'Positions highlighted on the fingerboard. Moving to next chord...';
+      cardBorderClass = 'border-amber-500/40 shadow-[0_0_20px_rgba(234,179,8,0.15)]';
+      cardBgClass = 'bg-amber-950/10';
+      glowColor = 'rgba(234, 179, 8, 0.1)';
+    } else {
+      if (foundIntervals.length === 0) {
+        feedbackText = isLiveListening ? 'Listening for Root, 3rd, 5th, or 7th...' : 'Microphone Paused';
+        feedbackSubtext = isLiveListening ? 'Pluck your double bass to begin.' : 'Click "Start Listening" to activate the microphone.';
+      } else {
+        feedbackText = `Found ${foundIntervals.length} of 4 chord tones!`;
+        feedbackSubtext = 'Pluck remaining notes on your double bass.';
+      }
+    }
   } else if (practiceMode === 'multi') {
     if (gameState === 'SUCCESS') {
       feedbackText = 'All Chord Tones Found! 🎉';
@@ -210,6 +255,18 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
             }`}
           >
             Reference
+          </button>
+          <button
+            type="button"
+            onClick={() => onModeChange('live')}
+            className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 ${
+              practiceMode === 'live'
+                ? 'bg-rose-600 text-white shadow-md'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <span>Live Play</span>
+            <span className="text-[10px]">🎙️</span>
           </button>
         </div>
       )}
@@ -407,6 +464,223 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
 
           </div>
         </div>
+      ) : practiceMode === 'live' ? (
+        /* LIVE PLAY MODE: Real-time microphone listening for bass chord tones */
+        <>
+          {/* Stats Bar */}
+          <div className="grid grid-cols-4 gap-2 w-full">
+            {/* Score Card */}
+            <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/5 border border-white/5 backdrop-blur-md">
+              <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Score</span>
+              <span className="text-xl font-bold font-mono text-violet-300">{score}</span>
+            </div>
+
+            {/* Streak Card */}
+            <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/5 border border-white/5 backdrop-blur-md">
+              <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Streak</span>
+              <div className="flex items-center gap-1">
+                <span className="text-xl font-bold font-mono text-emerald-400">{streak}</span>
+                {streak >= 3 && <span className="text-xs animate-bounce">🔥</span>}
+              </div>
+            </div>
+
+            {/* Solved Card */}
+            <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/5 border border-white/5 backdrop-blur-md">
+              <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Solved</span>
+              <span className="text-xl font-bold font-mono text-slate-200">
+                {correctAnswers}/{totalAttempts}
+              </span>
+            </div>
+
+            {/* Errors / Attempts Card */}
+            <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/5 border border-white/5 backdrop-blur-md">
+              <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Errors</span>
+              <span className={`text-xl font-bold font-mono ${liveErrorsCount >= 2 ? 'text-rose-400' : liveErrorsCount === 1 ? 'text-yellow-400' : 'text-slate-300'}`}>
+                {liveErrorsCount} / 2
+              </span>
+            </div>
+          </div>
+
+          {/* Main Live Play Card */}
+          <div
+            className={`relative overflow-hidden w-full flex flex-col items-center p-5 sm:p-6 rounded-3xl border ${cardBorderClass} ${cardBgClass} backdrop-blur-xl transition-all duration-300 shadow-2xl`}
+            style={{
+              boxShadow: `0 20px 40px -15px ${glowColor}`,
+            }}
+          >
+            {/* Top Status Banner */}
+            <div className="w-full flex items-center justify-between mb-4 gap-2">
+              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-bold uppercase tracking-wider">
+                <span className={`w-2.5 h-2.5 rounded-full ${isLiveListening ? 'bg-rose-500 animate-pulse shadow-rose-glow' : 'bg-slate-500'} inline-block shrink-0`} />
+                <span>{isLiveListening ? 'Mic Active' : 'Mic Paused'}</span>
+              </div>
+              <div className="text-xs font-mono text-slate-400 font-medium">
+                Attempts: <span className={liveErrorsCount === 1 ? 'text-yellow-400 font-bold' : liveErrorsCount >= 2 ? 'text-rose-400 font-bold' : 'text-slate-200 font-bold'}>{Math.max(0, 2 - liveErrorsCount)} left</span>
+              </div>
+            </div>
+
+            {/* Hero Chord Display */}
+            <div className="flex flex-col items-center text-center mb-4">
+              <span className="text-xs uppercase tracking-widest text-slate-400 font-bold mb-1">
+                {currentRoot} {chordDef.fullName}
+              </span>
+              <div className="flex items-baseline gap-1">
+                <span className="text-5xl font-black tracking-tight text-white font-mono">
+                  {currentRoot}
+                </span>
+                <span className="text-3xl font-extrabold text-violet-400 font-mono">
+                  {chordDef.symbol}
+                </span>
+              </div>
+              <span className="text-[11px] font-mono text-slate-400 mt-1">
+                Formula: {getChordFormula(currentChordType)}
+              </span>
+            </div>
+
+            {/* Target Chord Tones Checklist */}
+            <div className="w-full flex flex-col items-center gap-2 mb-5">
+              <span className="text-[10px] uppercase tracking-widest text-indigo-300 font-bold">
+                Play These 4 Notes ({foundIntervals.length} of 4 Found)
+              </span>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full max-w-lg">
+                {['I', 'III', 'V', 'VII'].map((interval) => {
+                  const isFound = foundIntervals.includes(interval);
+                  const spelledNote = getNoteSpelling(currentRoot, currentChordType, interval);
+                  const descName = getIntervalName(interval, currentChordType);
+
+                  return (
+                    <div
+                      key={`live-target-${interval}`}
+                      className={`flex flex-col p-2.5 rounded-xl border transition-all ${
+                        isFound
+                          ? 'bg-emerald-500/20 border-emerald-500/60 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.25)]'
+                          : gameState === 'FAILED_SHOW_ANSWER'
+                          ? 'bg-amber-500/20 border-amber-500/60 text-amber-300 shadow-[0_0_12px_rgba(234,179,8,0.25)]'
+                          : 'bg-white/5 border-white/10 text-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] opacity-75 font-semibold">
+                          {interval === 'I' ? '1st (Root)' : interval === 'III' ? '3rd' : interval === 'V' ? '5th' : '7th'}
+                        </span>
+                        <span className="text-xs font-bold font-mono">
+                          {isFound ? '✓' : '○'}
+                        </span>
+                      </div>
+                      <div className="flex items-baseline gap-1.5 mt-1">
+                        <span className="text-xl font-black font-mono">
+                          {spelledNote}
+                        </span>
+                        {showIntervalNames && (
+                          <span className="text-[10px] opacity-60 truncate">
+                            ({descName})
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Live Audio Visualizer / Pitch Readout */}
+            <div className="w-full flex flex-col items-center gap-3 p-3.5 rounded-2xl bg-black/40 border border-white/10 mb-4">
+              {/* Top status bar: toggle button + VU meter */}
+              <div className="w-full flex flex-wrap items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={onToggleLiveListening}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold tracking-wide transition-all flex items-center gap-2 ${
+                    isLiveListening
+                      ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-glow'
+                      : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-glow'
+                  }`}
+                >
+                  <span>{isLiveListening ? '⏹ Pause Mic' : '▶ Start Listening'}</span>
+                </button>
+
+                {/* VU Meter */}
+                <div className="flex items-center gap-2 flex-1 max-w-[200px]">
+                  <span className="text-[9px] uppercase font-bold text-slate-400">Level:</span>
+                  <div className="flex-1 h-2 rounded-full bg-white/10 overflow-hidden">
+                    <div
+                      className="h-full bg-emerald-400 transition-all duration-75"
+                      style={{ width: `${Math.min(100, Math.round(liveInputLevel * 100))}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Pitch Readout Display */}
+              <div className="w-full flex items-center justify-center py-2 px-4 rounded-xl bg-white/5 border border-white/5 min-h-[52px]">
+                {livePermissionError ? (
+                  <span className="text-xs text-rose-400 font-semibold text-center">
+                    ⚠️ {livePermissionError}. Please allow microphone permissions.
+                  </span>
+                ) : !isLiveListening ? (
+                  <span className="text-xs text-slate-400 font-medium text-center">
+                    Microphone is paused. Click <strong>Start Listening</strong> to detect notes.
+                  </span>
+                ) : liveCurrentPitch ? (
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs uppercase text-slate-400 font-bold">Detected:</span>
+                      <span className="text-2xl font-black font-mono text-emerald-300 bg-emerald-500/20 px-3 py-0.5 rounded-lg border border-emerald-500/40 shadow-emerald-glow">
+                        {liveCurrentPitch.noteName}{liveCurrentPitch.octave}
+                      </span>
+                    </div>
+                    <div className="flex flex-col text-left text-[11px] font-mono text-slate-300">
+                      <span>{liveCurrentPitch.freq} Hz</span>
+                      <span className={`text-[10px] font-semibold ${Math.abs(liveCurrentPitch.cents) <= 12 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                        {liveCurrentPitch.cents > 0 ? `+${liveCurrentPitch.cents}` : liveCurrentPitch.cents} cents
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-slate-400 text-xs animate-pulse">
+                    <span className="w-2 h-2 rounded-full bg-rose-500" />
+                    <span>Listening... Pluck a string on your double bass</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Visual feedback banner */}
+            <div className="w-full flex flex-col items-center justify-center min-h-[46px] border-t border-white/5 pt-3 text-center">
+              <span className={`text-sm font-bold tracking-wide transition-all ${
+                gameState === 'SUCCESS' ? 'text-emerald-400' :
+                gameState === 'TRY_AGAIN' ? 'text-rose-400' :
+                gameState === 'FAILED_SHOW_ANSWER' ? 'text-amber-400' : 'text-slate-300'
+              }`}>
+                {feedbackText}
+              </span>
+              <span className="text-xs text-slate-400 mt-0.5 max-w-[280px]">
+                {feedbackSubtext}
+              </span>
+            </div>
+
+            {/* Next Question / Skip Button */}
+            <div className="flex items-center gap-3 mt-4">
+              {(gameState === 'SUCCESS' || gameState === 'FAILED_SHOW_ANSWER') ? (
+                <button
+                  onClick={onNextQuestion}
+                  className="px-6 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 active:bg-violet-700 text-white font-bold text-xs uppercase tracking-wider shadow-[0_4px_12px_rgba(124,58,237,0.3)] transition-all duration-150 hover:scale-[1.03] active:scale-[0.98]"
+                >
+                  Next Chord ➔
+                </button>
+              ) : (
+                <button
+                  onClick={onNextQuestion}
+                  className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white border border-white/10 text-xs font-semibold uppercase tracking-wider transition-all"
+                  title="Skip to next chord"
+                >
+                  Skip Chord ❯
+                </button>
+              )}
+            </div>
+
+          </div>
+        </>
       ) : (
         /* QUIZ MODES: Single Interval & Multi-Note */
         <>
