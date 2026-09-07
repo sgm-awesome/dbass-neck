@@ -391,23 +391,23 @@ export default function App() {
         <section aria-label="Interactive Double Bass Fingerboard" className="w-full bg-white/5 border border-white/10 backdrop-blur-xl p-4 sm:p-6 rounded-3xl shadow-2xl">
           <div className="flex flex-wrap justify-between items-center border-b border-white/10 pb-3 mb-4 gap-2">
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse" />
+              <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse shadow-indigo-glow inline-block shrink-0" />
               <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200">Interactive Fingerboard (Positions 0 - 12)</h3>
             </div>
-            <div className="flex flex-wrap gap-3 sm:gap-4 text-[10px] font-semibold text-slate-400">
+            <div className="flex flex-wrap gap-3 sm:gap-4 text-[10px] font-semibold text-slate-300">
               {practiceMode === 'reference' ? (
                 <>
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-indigo-500 border border-indigo-300" /> Root (1)</span>
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 border border-emerald-300" /> 3rd</span>
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-cyan-500 border border-cyan-300" /> 5th</span>
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-500 border border-purple-300" /> 7th</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-indigo-500 border border-indigo-300 shadow-indigo-glow inline-block shrink-0" /> Root (1)</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500 border border-emerald-300 shadow-emerald-glow inline-block shrink-0" /> 3rd</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-cyan-500 border border-cyan-300 shadow-cyan-glow inline-block shrink-0" /> 5th</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-purple-500 border border-purple-300 shadow-purple-glow inline-block shrink-0" /> 7th</span>
                 </>
               ) : (
                 <>
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-indigo-600 border border-indigo-400" /> Root note</span>
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 border border-emerald-300" /> Correct guess</span>
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-500 border border-rose-300" /> Wrong guess</span>
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-500 border border-yellow-300" /> Answer hint</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-indigo-600 border border-indigo-400 shadow-indigo-glow inline-block shrink-0" /> Root note</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500 border border-emerald-300 shadow-emerald-glow inline-block shrink-0" /> Correct guess</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-rose-500 border border-rose-300 shadow-rose-glow inline-block shrink-0" /> Wrong guess</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-yellow-500 border border-yellow-300 shadow-yellow-glow inline-block shrink-0" /> Answer hint</span>
                 </>
               )}
             </div>
