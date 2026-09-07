@@ -537,21 +537,22 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
               </div>
             </div>
 
-            {/* Target Chord Tones Checklist */}
-            <div className="w-full flex flex-col items-center gap-2 mb-5">
+            {/* Target Chord Tones */}
+            <div className="w-full flex flex-col items-center gap-1.5 mb-4">
               <span className="text-[10px] uppercase tracking-widest text-indigo-300 font-bold">
                 Play These 4 Notes ({foundIntervals.length} of 4 Found)
               </span>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full max-w-lg">
+              <div className="flex flex-wrap items-center justify-center gap-2 w-full max-w-lg">
                 {['I', 'III', 'V', 'VII'].map((interval) => {
                   const isFound = foundIntervals.includes(interval);
                   const spelledNote = getNoteSpelling(currentRoot, currentChordType, interval);
                   const descName = getIntervalName(interval, currentChordType);
+                  const intervalLabel = interval === 'I' ? '1st' : interval === 'III' ? '3rd' : interval === 'V' ? '5th' : '7th';
 
                   return (
                     <div
                       key={`live-target-${interval}`}
-                      className={`flex flex-col p-2.5 rounded-xl border transition-all ${
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${
                         isFound
                           ? 'bg-emerald-500/20 border-emerald-500/60 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.25)]'
                           : gameState === 'FAILED_SHOW_ANSWER'
@@ -559,290 +560,261 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
                           : 'bg-white/5 border-white/10 text-slate-300'
                       }`}
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] opacity-75 font-semibold">
-                          {interval === 'I' ? '1st (Root)' : interval === 'III' ? '3rd' : interval === 'V' ? '5th' : '7th'}
+                      <span className="text-sm font-black font-mono">
+                        {spelledNote}
+                      </span>
+                      <span className="text-[10px] opacity-75 font-semibold">
+                        {intervalLabel}
+                      </span>
+                      {showIntervalNames && (
+                        <span className="text-[10px] opacity-60 truncate max-w-[70px]">
+                          ({descName})
                         </span>
-                        <span className="text-xs font-bold font-mono">
-                          {isFound ? '✓' : '○'}
-                        </span>
-                      </div>
-                      <div className="flex items-baseline gap-1.5 mt-1">
-                        <span className="text-xl font-black font-mono">
-                          {spelledNote}
-                        </span>
-                        {showIntervalNames && (
-                          <span className="text-[10px] opacity-60 truncate">
-                            ({descName})
-                          </span>
-                        )}
-                      </div>
+                      )}
+                      <span className={`text-xs font-mono font-bold ${isFound ? 'text-emerald-400' : 'text-slate-500'}`}>
+                        {isFound ? '✓' : '○'}
+                      </span>
                     </div>
                   );
                 })}
               </div>
             </div>
 
-            {/* Chromatic Bass Tuner & Real-time Audio Level Monitor */}
-            <div className="w-full flex flex-col gap-3.5 p-4 sm:p-5 rounded-2xl bg-black/60 border border-violet-500/20 shadow-2xl backdrop-blur-md mb-4">
+            {/* Chromatic Bass Tuner & Audio Level Console */}
+            <div className="w-full flex flex-col gap-3.5 p-4 sm:p-5 rounded-2xl bg-black/40 border border-white/10 shadow-2xl backdrop-blur-md mb-4">
               
-              {/* Controls & Active State Bar */}
-              <div className="w-full flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3">
-                <button
-                  type="button"
-                  onClick={onToggleLiveListening}
-                  className={`px-4 py-2 rounded-xl text-xs font-black tracking-wider uppercase transition-all duration-200 flex items-center gap-2 active:scale-95 ${
-                    isLiveListening
-                      ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-[0_0_15px_rgba(244,63,94,0.4)]'
-                      : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]'
-                  }`}
-                >
-                  <span className="text-sm">{isLiveListening ? '⏹' : '🎙️'}</span>
-                  <span>{isLiveListening ? 'Pause Microphone' : 'Start Listening'}</span>
-                </button>
+              {/* Header Bar: Mic Controls & Audio Level VU Meter */}
+              <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/10">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={onToggleLiveListening}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-black tracking-wider uppercase transition-all duration-200 flex items-center gap-2 active:scale-95 ${
+                      isLiveListening
+                        ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-[0_0_15px_rgba(244,63,94,0.4)]'
+                        : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]'
+                    }`}
+                  >
+                    <span className="text-sm">{isLiveListening ? '⏹' : '🎙️'}</span>
+                    <span>{isLiveListening ? 'Pause Mic' : 'Start Mic'}</span>
+                  </button>
 
-                {/* Mic Status Indicator */}
-                <div className="flex items-center gap-2.5">
                   {isLiveListening ? (
-                    <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/15 border border-rose-500/30 text-rose-300 text-[11px] font-bold tracking-wide">
-                      <span className="relative flex h-2.5 w-2.5">
+                    <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-rose-500/15 border border-rose-500/30 text-rose-300 text-[10px] font-bold tracking-wide">
+                      <span className="relative flex h-2 w-2">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
-                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500" />
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500" />
                       </span>
-                      <span>MIC LISTENING</span>
-                      {/* Equalizer wave bars */}
-                      <div className="flex items-end gap-0.5 h-3 ml-1">
-                        <span
-                          className="w-0.5 bg-rose-400 rounded-full transition-all duration-75"
-                          style={{ height: `${Math.max(3, Math.round(liveInputLevel * 12))}px` }}
-                        />
-                        <span
-                          className="w-0.5 bg-rose-400 rounded-full transition-all duration-75"
-                          style={{ height: `${Math.max(4, Math.round(liveInputLevel * 14))}px` }}
-                        />
-                        <span
-                          className="w-0.5 bg-rose-400 rounded-full transition-all duration-75"
-                          style={{ height: `${Math.max(2, Math.round(liveInputLevel * 10))}px` }}
-                        />
-                      </div>
+                      <span>LISTENING</span>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-slate-400 text-[11px] font-medium">
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-slate-400 text-[10px] font-medium">
                       <span className="w-2 h-2 rounded-full bg-slate-500" />
-                      <span>MIC PAUSED</span>
+                      <span>PAUSED</span>
                     </div>
                   )}
                 </div>
-              </div>
 
-              {/* Sound Level (VU Meter) */}
-              <div className="w-full flex flex-col gap-2 bg-white/5 p-3 rounded-xl border border-white/5">
-                <div className="flex items-center justify-between text-[11px] font-bold font-mono text-slate-300">
-                  <span className="flex items-center gap-2">
-                    <span className="text-slate-400 font-semibold tracking-wider text-[10px]">AUDIO INPUT LEVEL</span>
-                    {isLiveListening && (
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full border ${
+                {/* Integrated Sound Level (VU Meter) */}
+                <div className="flex-1 sm:max-w-sm flex flex-col gap-1.5 bg-black/50 px-3 py-2 rounded-xl border border-white/10">
+                  <div className="flex items-center justify-between text-[10px] font-mono">
+                    <span className="text-slate-400 font-semibold tracking-wider">AUDIO LEVEL</span>
+                    {isLiveListening ? (
+                      <span className={`font-bold ${
                         liveInputLevel < 0.05
-                          ? 'bg-slate-800 text-slate-400 border-slate-700'
+                          ? 'text-slate-500'
                           : liveInputLevel < 0.20
-                          ? 'bg-sky-950/60 text-sky-300 border-sky-500/30'
+                          ? 'text-sky-400'
                           : liveInputLevel < 0.70
-                          ? 'bg-emerald-950/60 text-emerald-300 border-emerald-500/30'
-                          : 'bg-rose-950/60 text-rose-300 border-rose-500/30'
+                          ? 'text-emerald-400'
+                          : 'text-rose-400'
                       }`}>
-                        {liveInputLevel < 0.05 ? 'SILENT' : liveInputLevel < 0.20 ? 'DETECTING...' : liveInputLevel < 0.70 ? 'GOOD SIGNAL 🎵' : 'PEAK 🔊'}
+                        {liveInputLevel < 0.05 ? 'SILENT' : liveInputLevel < 0.20 ? 'DETECTING' : liveInputLevel < 0.70 ? 'GOOD SIGNAL 🎵' : 'PEAK 🔊'}
                       </span>
+                    ) : (
+                      <span className="text-slate-500">OFF</span>
                     )}
-                  </span>
-                  <span className={`text-xs font-mono font-black ${liveInputLevel > 0.05 ? 'text-emerald-400' : 'text-slate-500'}`}>
-                    {isLiveListening ? `${Math.round(liveInputLevel * 100)}%` : 'OFF'}
-                  </span>
-                </div>
-
-                {/* 24-Segment LED Meter */}
-                <div className="flex gap-1 h-4 w-full bg-black/70 p-1 rounded-lg border border-white/10 shadow-inner">
-                  {Array.from({ length: 24 }).map((_, segIdx) => {
-                    const activeCount = Math.round(liveInputLevel * 24);
-                    const isActive = isLiveListening && segIdx < activeCount;
-                    
-                    let activeColor = 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]';
-                    let inactiveColor = 'bg-emerald-950/30 border border-emerald-500/10';
-                    if (segIdx >= 14 && segIdx < 19) {
-                      activeColor = 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.9)]';
-                      inactiveColor = 'bg-amber-950/30 border border-amber-500/10';
-                    } else if (segIdx >= 19) {
-                      activeColor = 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.9)]';
-                      inactiveColor = 'bg-rose-950/30 border border-rose-500/10';
-                    }
-
-                    return (
-                      <span
-                        key={`vu-seg-${segIdx}`}
-                        className={`flex-1 h-full rounded-[1.5px] transition-all duration-75 ${
-                          isActive ? activeColor : inactiveColor
-                        }`}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Chromatic Tuner Screen */}
-              <div className="w-full flex flex-col items-center justify-center p-4 rounded-xl bg-black/70 border border-white/10 relative overflow-hidden">
-                {livePermissionError ? (
-                  <div className="py-4 text-center">
-                    <span className="text-xs text-rose-400 font-bold">
-                      ⚠️ {livePermissionError}
-                    </span>
-                    <p className="text-[11px] text-slate-400 mt-1">
-                      Please allow microphone access in your browser to use Live Play mode.
-                    </p>
                   </div>
-                ) : !isLiveListening ? (
-                  <div className="py-4 text-center flex flex-col items-center gap-1.5">
-                    <span className="text-2xl opacity-40">🎙️</span>
-                    <span className="text-xs text-slate-300 font-semibold">
-                      Microphone is currently paused
-                    </span>
-                    <span className="text-[11px] text-slate-400 max-w-sm">
-                      Click <strong className="text-emerald-400">Start Listening</strong> to detect notes from your double bass in real time.
-                    </span>
-                  </div>
-                ) : (
-                  <div className="w-full flex flex-col items-center">
-                    
-                    {/* Note & Pitch Tuning Status */}
-                    <div className="flex items-center justify-between w-full max-w-md px-2 mb-3">
+
+                  {/* LED Meter Bar */}
+                  <div className="flex gap-1 h-3.5 w-full bg-black/80 p-0.5 rounded-lg border border-white/10 shadow-inner">
+                    {Array.from({ length: 24 }).map((_, segIdx) => {
+                      const activeCount = Math.round(liveInputLevel * 24);
+                      const isActive = isLiveListening && segIdx < activeCount;
                       
-                      {/* Left: Tuning State / Cents */}
-                      <div className="w-24 text-left">
-                        {liveCurrentPitch ? (
-                          <div className="flex flex-col">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Deviation</span>
-                            <span className={`text-base font-black font-mono ${
-                              Math.abs(liveCurrentPitch.cents) <= 5
-                                ? 'text-emerald-400'
-                                : liveCurrentPitch.cents < 0
-                                ? 'text-amber-400'
-                                : 'text-rose-400'
-                            }`}>
-                              {liveCurrentPitch.cents > 0 ? `+${liveCurrentPitch.cents}` : liveCurrentPitch.cents}¢
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-[10px] text-slate-600 font-mono">--</span>
-                        )}
-                      </div>
+                      let activeColor = 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]';
+                      let inactiveColor = 'bg-emerald-950/40 border border-emerald-500/15';
+                      if (segIdx >= 14 && segIdx < 19) {
+                        activeColor = 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.9)]';
+                        inactiveColor = 'bg-amber-950/40 border border-amber-500/15';
+                      } else if (segIdx >= 19) {
+                        activeColor = 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.9)]';
+                        inactiveColor = 'bg-rose-950/40 border border-rose-500/15';
+                      }
 
-                      {/* Center: Big Note Display */}
-                      <div className="flex flex-col items-center">
-                        {liveCurrentPitch ? (
-                          <div className="flex items-baseline gap-1">
-                            <span className="text-6xl font-black font-mono tracking-tight text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.5)]">
-                              {liveCurrentPitch.noteName}
-                            </span>
-                            <span className="text-2xl font-black font-mono text-slate-400">
-                              {liveCurrentPitch.octave}
-                            </span>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center gap-1">
-                            <span className="text-6xl font-black font-mono text-slate-700">
-                              --
-                            </span>
-                          </div>
-                        )}
-
-                        {/* In-Tune Status Badge */}
-                        <div className="mt-1">
-                          {liveCurrentPitch ? (
-                            Math.abs(liveCurrentPitch.cents) <= 5 ? (
-                              <span className="px-3 py-1 rounded-full text-xs font-black font-mono bg-emerald-500/25 border border-emerald-500/60 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.4)]">
-                                ✓ IN TUNE
-                              </span>
-                            ) : liveCurrentPitch.cents < -5 ? (
-                              <span className="px-3 py-1 rounded-full text-xs font-bold font-mono bg-amber-500/25 border border-amber-500/60 text-amber-300">
-                                ◀ FLAT • TUNE UP ↗
-                              </span>
-                            ) : (
-                              <span className="px-3 py-1 rounded-full text-xs font-bold font-mono bg-rose-500/25 border border-rose-500/60 text-rose-300">
-                                SHARP • TUNE DOWN ↘ ▶
-                              </span>
-                            )
-                          ) : (
-                            <span className="text-[11px] text-slate-500 font-medium animate-pulse">
-                              Listening for bass notes...
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Right: Frequency readout */}
-                      <div className="w-24 text-right">
-                        {liveCurrentPitch ? (
-                          <div className="flex flex-col items-end">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Pitch</span>
-                            <span className="text-sm font-bold font-mono text-slate-200">
-                              {liveCurrentPitch.freq} <span className="text-[10px] font-normal text-slate-400">Hz</span>
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-[10px] text-slate-600 font-mono">--</span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Tuner Cents Needle Gauge */}
-                    <div className="w-full max-w-md flex flex-col gap-1.5 px-2">
-                      {/* Needle Track */}
-                      <div className="relative w-full h-9 bg-black/80 rounded-xl border border-white/15 px-2 overflow-hidden flex items-center shadow-inner">
-                        
-                        {/* Center In-Tune Target Zone */}
-                        <div className="absolute left-1/2 -translate-x-1/2 w-10 h-full bg-emerald-500/15 border-x border-emerald-500/40" />
-
-                        {/* Scale tick marks */}
-                        <div className="w-full flex justify-between items-center text-[10px] font-mono text-slate-500 px-1 z-0 pointer-events-none">
-                          <span className="font-semibold">-50</span>
-                          <span>-25</span>
-                          <span className="text-emerald-400 font-black text-xs">▲ 0</span>
-                          <span>+25</span>
-                          <span className="font-semibold">+50</span>
-                        </div>
-
-                        {/* Moving Needle */}
-                        {liveCurrentPitch ? (
-                          <div
-                            className="absolute top-0 bottom-0 w-2 transition-all duration-100 ease-out z-10 flex flex-col items-center justify-center -translate-x-1/2"
-                            style={{
-                              left: `${50 + (Math.max(-50, Math.min(50, liveCurrentPitch.cents)) / 50) * 44}%`,
-                            }}
-                          >
-                            <span
-                              className={`w-1.5 h-full rounded-full ${
-                                Math.abs(liveCurrentPitch.cents) <= 5
-                                  ? 'bg-emerald-400 shadow-[0_0_15px_rgba(52,211,153,1)]'
-                                  : liveCurrentPitch.cents < 0
-                                  ? 'bg-amber-400 shadow-[0_0_12px_rgba(251,191,36,1)]'
-                                  : 'bg-rose-500 shadow-[0_0_12px_rgba(244,63,94,1)]'
-                              }`}
-                            />
-                          </div>
-                        ) : (
-                          <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-0.5 bg-slate-700/50" />
-                        )}
-                      </div>
-
-                      {/* Scale Labels */}
-                      <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-wider px-1">
-                        <span className="text-amber-400/90">◀ Flat (♭)</span>
-                        <span className="text-emerald-400 font-mono">In Tune (±5¢)</span>
-                        <span className="text-rose-400/90">Sharp (♯) ▶</span>
-                      </div>
-                    </div>
-
+                      return (
+                        <span
+                          key={`vu-seg-${segIdx}`}
+                          className={`flex-1 h-full rounded-[1.5px] transition-all duration-75 ${
+                            isActive ? activeColor : inactiveColor
+                          }`}
+                        />
+                      );
+                    })}
                   </div>
-                )}
+                </div>
               </div>
+
+              {/* Tuner Screen & Gauge */}
+              {livePermissionError ? (
+                <div className="py-4 text-center">
+                  <span className="text-xs text-rose-400 font-bold">
+                    ⚠️ {livePermissionError}
+                  </span>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Please allow microphone access in your browser to use Live Play mode.
+                  </p>
+                </div>
+              ) : !isLiveListening ? (
+                <div className="py-5 text-center flex flex-col items-center gap-1.5">
+                  <span className="text-2xl opacity-40">🎙️</span>
+                  <span className="text-xs text-slate-300 font-semibold">
+                    Microphone is currently paused
+                  </span>
+                  <span className="text-[11px] text-slate-400 max-w-sm">
+                    Click <strong className="text-emerald-400">Start Listening</strong> to detect notes from your double bass in real time.
+                  </span>
+                </div>
+              ) : (
+                <div className="w-full flex flex-col items-center pt-1">
+                  {/* Note & Pitch Tuning Status */}
+                  <div className="flex items-center justify-between w-full px-2 mb-3">
+                    {/* Left: Tuning Deviation in Cents */}
+                    <div className="w-24 text-left">
+                      {liveCurrentPitch ? (
+                        <div className="flex flex-col">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Deviation</span>
+                          <span className={`text-base font-black font-mono ${
+                            Math.abs(liveCurrentPitch.cents) <= 5
+                              ? 'text-emerald-400'
+                              : liveCurrentPitch.cents < 0
+                              ? 'text-amber-400'
+                              : 'text-rose-400'
+                          }`}>
+                            {liveCurrentPitch.cents > 0 ? `+${liveCurrentPitch.cents}` : liveCurrentPitch.cents}¢
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-[10px] text-slate-600 font-mono">--</span>
+                      )}
+                    </div>
+
+                    {/* Center: Big Note Display */}
+                    <div className="flex flex-col items-center">
+                      {liveCurrentPitch ? (
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-6xl font-black font-mono tracking-tight text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.5)]">
+                            {liveCurrentPitch.noteName}
+                          </span>
+                          <span className="text-2xl font-black font-mono text-slate-400">
+                            {liveCurrentPitch.octave}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="text-6xl font-black font-mono text-slate-700">
+                            --
+                          </span>
+                        </div>
+                      )}
+
+                      {/* In-Tune Status Badge */}
+                      <div className="mt-1">
+                        {liveCurrentPitch ? (
+                          Math.abs(liveCurrentPitch.cents) <= 5 ? (
+                            <span className="px-3 py-1 rounded-full text-xs font-black font-mono bg-emerald-500/25 border border-emerald-500/60 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.4)]">
+                              ✓ IN TUNE
+                            </span>
+                          ) : liveCurrentPitch.cents < -5 ? (
+                            <span className="px-3 py-1 rounded-full text-xs font-bold font-mono bg-amber-500/25 border border-amber-500/60 text-amber-300">
+                              ◀ FLAT • TUNE UP ↗
+                            </span>
+                          ) : (
+                            <span className="px-3 py-1 rounded-full text-xs font-bold font-mono bg-rose-500/25 border border-rose-500/60 text-rose-300">
+                              SHARP • TUNE DOWN ↘ ▶
+                            </span>
+                          )
+                        ) : (
+                          <span className="text-[11px] text-slate-500 font-medium animate-pulse">
+                            Listening for bass notes...
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Right: Frequency readout */}
+                    <div className="w-24 text-right">
+                      {liveCurrentPitch ? (
+                        <div className="flex flex-col items-end">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Pitch</span>
+                          <span className="text-sm font-bold font-mono text-slate-200">
+                            {liveCurrentPitch.freq} <span className="text-[10px] font-normal text-slate-400">Hz</span>
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-[10px] text-slate-600 font-mono">--</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Tuner Cents Needle Gauge */}
+                  <div className="w-full flex flex-col gap-1.5 px-1">
+                    {/* Needle Track */}
+                    <div className="relative w-full h-8 bg-black/80 rounded-xl border border-white/15 px-3 overflow-hidden flex items-center shadow-inner">
+                      {/* Center In-Tune Target Zone */}
+                      <div className="absolute left-1/2 -translate-x-1/2 w-10 h-full bg-emerald-500/15 border-x border-emerald-500/40" />
+
+                      {/* Scale tick marks */}
+                      <div className="w-full flex justify-between items-center text-[10px] font-mono text-slate-500 px-1 z-0 pointer-events-none">
+                        <span className="font-semibold">-50</span>
+                        <span>-25</span>
+                        <span className="text-emerald-400 font-black text-xs">▲ 0</span>
+                        <span>+25</span>
+                        <span className="font-semibold">+50</span>
+                      </div>
+
+                      {/* Moving Needle */}
+                      {liveCurrentPitch ? (
+                        <div
+                          className="absolute top-0 bottom-0 w-2 transition-all duration-100 ease-out z-10 flex flex-col items-center justify-center -translate-x-1/2"
+                          style={{
+                            left: `${50 + (Math.max(-50, Math.min(50, liveCurrentPitch.cents)) / 50) * 44}%`,
+                          }}
+                        >
+                          <span
+                            className={`w-1.5 h-full rounded-full ${
+                              Math.abs(liveCurrentPitch.cents) <= 5
+                                ? 'bg-emerald-400 shadow-[0_0_15px_rgba(52,211,153,1)]'
+                                : liveCurrentPitch.cents < 0
+                                ? 'bg-amber-400 shadow-[0_0_12px_rgba(251,191,36,1)]'
+                                : 'bg-rose-500 shadow-[0_0_12px_rgba(244,63,94,1)]'
+                            }`}
+                          />
+                        </div>
+                      ) : (
+                        <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-0.5 bg-slate-700/50" />
+                      )}
+                    </div>
+
+                    {/* Scale Labels */}
+                    <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-wider px-1">
+                      <span className="text-amber-400/90">◀ Flat (♭)</span>
+                      <span className="text-emerald-400 font-mono">In Tune (±5¢)</span>
+                      <span className="text-rose-400/90">Sharp (♯) ▶</span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
             </div>
 

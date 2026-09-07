@@ -40,7 +40,7 @@ export default function App() {
   };
 
   const [showNoteNames, setShowNoteNames] = useState(false);
-  const [showRootNotes, setShowRootNotes] = useState(true);
+  const [showRootNotes, setShowRootNotes] = useState(false);
   const [showIntervalNames, setShowIntervalNames] = useState(true);
   const [showTapes, setShowTapes] = useState(true);
   const [showPositionLines, setShowPositionLines] = useState(true);
