@@ -581,10 +581,10 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
             </div>
 
             {/* Chromatic Bass Tuner & Audio Level Console */}
-            <div className="w-full flex flex-col gap-3.5 p-4 sm:p-5 rounded-2xl bg-black/40 border border-white/10 shadow-2xl backdrop-blur-md mb-4">
+            <div className="w-full max-w-full min-w-0 flex flex-col gap-3.5 p-4 sm:p-5 rounded-2xl bg-black/40 border border-white/10 shadow-2xl backdrop-blur-md mb-4 overflow-hidden">
               
               {/* Header Bar: Mic Controls & Audio Level VU Meter */}
-              <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/10">
+              <div className="w-full flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 pb-3 border-b border-white/10">
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
@@ -616,7 +616,7 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
                 </div>
 
                 {/* Integrated Sound Level (VU Meter) */}
-                <div className="flex-1 sm:max-w-sm flex flex-col gap-1.5 bg-black/50 px-3 py-2 rounded-xl border border-white/10">
+                <div className="w-full sm:w-auto sm:max-w-xs flex-1 min-w-0 flex flex-col gap-1.5 bg-black/50 px-3 py-2 rounded-xl border border-white/10">
                   <div className="flex items-center justify-between text-[10px] font-mono">
                     <span className="text-slate-400 font-semibold tracking-wider">AUDIO LEVEL</span>
                     {isLiveListening ? (
@@ -686,7 +686,7 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
                   </span>
                 </div>
               ) : (
-                <div className="w-full flex flex-col items-center pt-1">
+                <div className="w-full min-w-0 max-w-full flex flex-col items-center pt-1">
                   {/* Note & Pitch Tuning Status */}
                   <div className="flex items-center justify-between w-full px-2 mb-3">
                     {/* Left: Tuning Deviation in Cents */}
@@ -768,7 +768,7 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
                   </div>
 
                   {/* Tuner Cents Needle Gauge */}
-                  <div className="w-full flex flex-col gap-1.5 px-1">
+                  <div className="w-full min-w-0 max-w-full flex flex-col gap-1.5 px-1">
                     {/* Needle Track */}
                     <div className="relative w-full h-8 bg-black/80 rounded-xl border border-white/15 px-3 overflow-hidden flex items-center shadow-inner">
                       {/* Center In-Tune Target Zone */}
