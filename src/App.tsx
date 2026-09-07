@@ -17,7 +17,6 @@ export default function App() {
   // Practice Mode State
   const [practiceMode, setPracticeMode] = useState<PracticeMode>('single');
   const [multiNoteIntervals, setMultiNoteIntervals] = useState<string[]>(DEFAULT_MULTI_INTERVALS);
-  const [liveErrorsCount, setLiveErrorsCount] = useState(0);
 
   // Reference Mode State
   const [referenceIntervalFilter, setReferenceIntervalFilter] = useState<'all' | 'root' | 'guide' | 'triad'>('all');
@@ -44,6 +43,16 @@ export default function App() {
   const [showIntervalNames, setShowIntervalNames] = useState(true);
   const [showTapes, setShowTapes] = useState(true);
   const [showPositionLines, setShowPositionLines] = useState(true);
+  const [showStaffNotation, setShowStaffNotation] = useState(() => {
+    const saved = localStorage.getItem('dbass_show_staff_notation');
+    return saved !== null ? saved === 'true' : true;
+  });
+
+  const handleToggleStaffNotation = (val: boolean) => {
+    setShowStaffNotation(val);
+    localStorage.setItem('dbass_show_staff_notation', String(val));
+  };
+
   const [soundVolume, setSoundVolume] = useState(0.6);
   const [soundMuted, setSoundMuted] = useState(false);
 
@@ -126,7 +135,6 @@ export default function App() {
       setTargetNoteSpelling(firstSpelling);
       setFoundIntervals([]);
       setCorrectNotesClicked([]);
-      setLiveErrorsCount(0);
     } else if (practiceMode === 'multi') {
       const activeMulti = multiNoteIntervals.length > 0 ? multiNoteIntervals : DEFAULT_MULTI_INTERVALS;
       const firstInt = activeMulti[0] || 'III';
@@ -138,7 +146,6 @@ export default function App() {
       setTargetNoteSpelling(firstSpelling);
       setFoundIntervals([]);
       setCorrectNotesClicked([]);
-      setLiveErrorsCount(0);
     } else {
       // Single interval mode
       const activeIntervals = selectedIntervals.length > 0 ? selectedIntervals : ['III'];
@@ -151,7 +158,6 @@ export default function App() {
       setTargetNoteSpelling(targetSpelling);
       setFoundIntervals([]);
       setCorrectNotesClicked([]);
-      setLiveErrorsCount(0);
     }
 
     // Reset interaction state
@@ -172,24 +178,20 @@ export default function App() {
   // Pitch detection for live play mode
   const handleLiveNoteDetected = useCallback((detected: DetectedPitch) => {
     if (practiceMode !== 'live') return;
-    if (gameState === 'SUCCESS' || gameState === 'FAILED_SHOW_ANSWER') return;
+    if (gameState === 'SUCCESS') return;
 
+    // Strictly wait for next chord tone in order: Root ('I') -> 3rd ('III') -> 5th ('V') -> 7th ('VII')
     const targets = LIVE_TARGET_INTERVALS;
+    const nextIndex = foundIntervals.length;
+    if (nextIndex >= targets.length) return;
 
-    // Check if detected pitch matches any target chord tone
-    const matchingTarget = targets.find(interval => {
-      const spelling = getNoteSpelling(currentRoot, currentChordType, interval);
-      const targetPitchClass = getPitchClass(spelling);
-      return detected.pitchClass === targetPitchClass;
-    });
+    const currentTargetInterval = targets[nextIndex];
+    const targetSpelling = getNoteSpelling(currentRoot, currentChordType, currentTargetInterval);
+    const targetPitchClass = getPitchClass(targetSpelling);
 
-    if (matchingTarget) {
-      // Correct note played on instrument!
-      if (foundIntervals.includes(matchingTarget)) {
-        return;
-      }
-
-      const nextFound = [...foundIntervals, matchingTarget];
+    if (detected.pitchClass === targetPitchClass) {
+      // Right note played on bass!
+      const nextFound = [...foundIntervals, currentTargetInterval];
       setFoundIntervals(nextFound);
 
       // Check if all 4 chord tones found
@@ -197,9 +199,7 @@ export default function App() {
         setGameState('SUCCESS');
         playSuccess();
 
-        const isClean = liveErrorsCount === 0;
-        const points = isClean ? 30 : 15;
-
+        const points = 30;
         setScore(prev => {
           const newScore = prev + points;
           if (newScore > highScore) {
@@ -209,10 +209,8 @@ export default function App() {
           return newScore;
         });
 
-        if (isClean) {
-          setStreak(prev => prev + 1);
-          setCorrectAnswers(prev => prev + 1);
-        }
+        setStreak(prev => prev + 1);
+        setCorrectAnswers(prev => prev + 1);
         setTotalAttempts(prev => prev + 1);
 
         // Auto-advance after 2.2 seconds
@@ -223,28 +221,9 @@ export default function App() {
         // Play chime for note found
         playFoundNote();
       }
-    } else {
-      // Wrong note played!
-      playFailure();
-      setStreak(0);
-
-      if (liveErrorsCount === 0) {
-        // First error -> allow second try
-        setLiveErrorsCount(1);
-        setGameState('TRY_AGAIN');
-      } else {
-        // Second error -> show answer on neck and staff
-        setLiveErrorsCount(2);
-        setGameState('FAILED_SHOW_ANSWER');
-        setTotalAttempts(prev => prev + 1);
-
-        // Auto-advance after 4.2 seconds
-        timerRef.current = setTimeout(() => {
-          generateQuestion();
-        }, 4200);
-      }
     }
-  }, [practiceMode, gameState, currentRoot, currentChordType, foundIntervals, liveErrorsCount, highScore, playSuccess, playFoundNote, playFailure, generateQuestion]);
+    // Wrong note played: do nothing! No errors, no fail sounds, no shake. The app waits for the right note.
+  }, [practiceMode, gameState, currentRoot, currentChordType, foundIntervals, highScore, playSuccess, playFoundNote, generateQuestion]);
 
   // Real-time microphone pitch detection hook
   const {
@@ -342,64 +321,41 @@ export default function App() {
         rms: 0.1,
       });
 
-      // Allow fingerboard clicking in live mode as well
-      const matchingTarget = LIVE_TARGET_INTERVALS.find(interval => {
-        const spelling = getNoteSpelling(currentRoot, currentChordType, interval);
-        return cleanNote === spelling.replace(/[2-4]/g, '');
-      });
+      const targets = LIVE_TARGET_INTERVALS;
+      const nextIndex = foundIntervals.length;
+      if (nextIndex < targets.length) {
+        const currentTargetInterval = targets[nextIndex];
+        const targetSpelling = getNoteSpelling(currentRoot, currentChordType, currentTargetInterval);
+        const targetPitchClass = getPitchClass(targetSpelling);
 
-      if (matchingTarget) {
-        if (foundIntervals.includes(matchingTarget)) return;
+        if (getPitchClass(cleanNote) === targetPitchClass) {
+          const nextFound = [...foundIntervals, currentTargetInterval];
+          setFoundIntervals(nextFound);
 
-        const nextFound = [...foundIntervals, matchingTarget];
-        setFoundIntervals(nextFound);
-        setCorrectNotesClicked(prev => (prev.includes(clickKey) ? prev : [...prev, clickKey]));
+          if (nextFound.length >= targets.length) {
+            setGameState('SUCCESS');
+            playSuccess();
 
-        if (nextFound.length >= LIVE_TARGET_INTERVALS.length) {
-          setGameState('SUCCESS');
-          playSuccess();
+            const points = 30;
+            setScore(prev => {
+              const newScore = prev + points;
+              if (newScore > highScore) {
+                setHighScore(newScore);
+                localStorage.setItem('dbass_highscore', newScore.toString());
+              }
+              return newScore;
+            });
 
-          const isClean = liveErrorsCount === 0;
-          const points = isClean ? 30 : 15;
-
-          setScore(prev => {
-            const newScore = prev + points;
-            if (newScore > highScore) {
-              setHighScore(newScore);
-              localStorage.setItem('dbass_highscore', newScore.toString());
-            }
-            return newScore;
-          });
-
-          if (isClean) {
             setStreak(prev => prev + 1);
             setCorrectAnswers(prev => prev + 1);
+            setTotalAttempts(prev => prev + 1);
+
+            timerRef.current = setTimeout(() => {
+              generateQuestion();
+            }, 2200);
+          } else {
+            playFoundNote();
           }
-          setTotalAttempts(prev => prev + 1);
-
-          timerRef.current = setTimeout(() => {
-            generateQuestion();
-          }, 2200);
-        } else {
-          playFoundNote();
-        }
-      } else {
-        playFailure();
-        setStreak(0);
-
-        if (liveErrorsCount === 0) {
-          setLiveErrorsCount(1);
-          setGuessedWrongNotes([clickKey]);
-          setGameState('TRY_AGAIN');
-        } else {
-          setLiveErrorsCount(2);
-          setGuessedWrongNotes(prev => [...prev, clickKey]);
-          setGameState('FAILED_SHOW_ANSWER');
-          setTotalAttempts(prev => prev + 1);
-
-          timerRef.current = setTimeout(() => {
-            generateQuestion();
-          }, 4200);
         }
       }
       return;
@@ -602,10 +558,18 @@ export default function App() {
                   <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-cyan-500 border border-cyan-300 shadow-cyan-glow inline-block shrink-0" /> 5th</span>
                   <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-purple-500 border border-purple-300 shadow-purple-glow inline-block shrink-0" /> 7th</span>
                 </>
+              ) : practiceMode === 'live' ? (
+                <>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-cyan-500 border border-cyan-300 shadow-[0_0_8px_#06b6d4] inline-block shrink-0" /> Note being played</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500 border border-emerald-300 shadow-emerald-glow inline-block shrink-0" /> Found chord tone</span>
+                  {showRootNotes && (
+                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-indigo-600 border border-indigo-400 shadow-indigo-glow inline-block shrink-0" /> Root note</span>
+                  )}
+                </>
               ) : (
                 <>
                   <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-indigo-600 border border-indigo-400 shadow-indigo-glow inline-block shrink-0" /> Root note</span>
-                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500 border border-emerald-300 shadow-emerald-glow inline-block shrink-0" /> Correct {practiceMode === 'live' ? 'played' : 'guess'}</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500 border border-emerald-300 shadow-emerald-glow inline-block shrink-0" /> Correct guess</span>
                   <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-rose-500 border border-rose-300 shadow-rose-glow inline-block shrink-0" /> Wrong note</span>
                   <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-yellow-500 border border-yellow-300 shadow-yellow-glow inline-block shrink-0" /> Answer hint</span>
                 </>
@@ -622,6 +586,8 @@ export default function App() {
             activeReferenceClickedKey={activeReferenceClickedKey}
             targetNoteSpelling={targetNoteSpelling}
             targetNoteSpellings={multiTargetSpellings}
+            foundIntervals={foundIntervals}
+            livePlayingPitchClass={practiceMode === 'live' ? liveCurrentPitch?.pitchClass : null}
             showNoteNames={showNoteNames}
             showRootNotes={showRootNotes}
             showTapes={showTapes}
@@ -634,8 +600,8 @@ export default function App() {
           />
         </section>
 
-        {/* 2. Middle Row: Dashboard (left) & Notation Staff (right) */}
-        <section aria-label="Dashboard and Notation" className="w-full grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+        {/* 2. Main Dashboard (Full Width) */}
+        <section aria-label="Dashboard" className="w-full">
           <GameDashboard
             currentRoot={currentRoot}
             currentChordType={currentChordType}
@@ -660,7 +626,6 @@ export default function App() {
             liveCurrentPitch={liveCurrentPitch}
             liveInputLevel={liveInputLevel}
             livePermissionError={livePermissionError}
-            liveErrorsCount={liveErrorsCount}
             gameState={gameState}
             score={score}
             streak={streak}
@@ -669,24 +634,30 @@ export default function App() {
             correctAnswers={correctAnswers}
             onNextQuestion={handleNextQuestion}
           />
-          <MusicalStaff
-            rootNote={currentRoot}
-            chordType={currentChordType}
-            targetInterval={practiceMode === 'reference' || practiceMode === 'live' ? 'III' : currentInterval}
-            targetIntervals={
-              practiceMode === 'reference'
-                ? ['III', 'V', 'VII']
-                : practiceMode === 'live'
-                ? LIVE_TARGET_INTERVALS
-                : (practiceMode === 'multi' ? multiNoteIntervals : undefined)
-            }
-            foundIntervals={practiceMode === 'reference' ? ['III', 'V', 'VII'] : foundIntervals}
-            showAnswer={practiceMode === 'reference' ? true : (gameState === 'SUCCESS' || gameState === 'FAILED_SHOW_ANSWER')}
-            isCorrect={practiceMode === 'reference' ? true : (gameState === 'SUCCESS')}
-          />
         </section>
 
-        {/* 3. Bottom Row: Practice Settings (Collapsible) */}
+        {/* 3. Musical Notation (Placed below dashboard, display controlled by config) */}
+        {showStaffNotation && (
+          <section aria-label="Musical Staff Notation" className="w-full max-w-2xl mx-auto">
+            <MusicalStaff
+              rootNote={currentRoot}
+              chordType={currentChordType}
+              targetInterval={practiceMode === 'reference' || practiceMode === 'live' ? 'III' : currentInterval}
+              targetIntervals={
+                practiceMode === 'reference'
+                  ? ['III', 'V', 'VII']
+                  : practiceMode === 'live'
+                  ? LIVE_TARGET_INTERVALS
+                  : (practiceMode === 'multi' ? multiNoteIntervals : undefined)
+              }
+              foundIntervals={practiceMode === 'reference' ? ['III', 'V', 'VII'] : foundIntervals}
+              showAnswer={practiceMode === 'reference' ? true : (gameState === 'SUCCESS' || gameState === 'FAILED_SHOW_ANSWER')}
+              isCorrect={practiceMode === 'reference' ? true : (gameState === 'SUCCESS')}
+            />
+          </section>
+        )}
+
+        {/* 4. Bottom Row: Practice Settings (Collapsible) */}
         <SettingsPanel
           isCollapsed={isSettingsCollapsed}
           onToggleCollapse={toggleSettingsCollapsed}
@@ -704,6 +675,8 @@ export default function App() {
           setShowTapes={setShowTapes}
           showPositionLines={showPositionLines}
           setShowPositionLines={setShowPositionLines}
+          showStaffNotation={showStaffNotation}
+          setShowStaffNotation={handleToggleStaffNotation}
           volume={soundVolume}
           setVolume={setSoundVolume}
           isMuted={soundMuted}

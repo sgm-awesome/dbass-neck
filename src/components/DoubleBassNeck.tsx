@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { BASS_STRINGS, getNoteSpellingForMidi, getPitchClass, getChordTones } from '../utils/musicTheory';
+import { BASS_STRINGS, getNoteSpellingForMidi, getPitchClass, getChordTones, getNoteSpelling } from '../utils/musicTheory';
 import type { ChordRoot, ChordType, PracticeMode, ChordToneInfo } from '../utils/musicTheory';
 
 interface DoubleBassNeckProps {
@@ -12,6 +12,8 @@ interface DoubleBassNeckProps {
 
   targetNoteSpelling?: string; // single mode (for backward compat)
   targetNoteSpellings?: string[]; // multi mode array
+  foundIntervals?: string[]; // live & multi mode found intervals
+  livePlayingPitchClass?: number | null; // pitch class of note currently sounding on instrument
   showNoteNames: boolean;      // settings: show all note names
   showRootNotes: boolean;      // settings: show root notes
   showTapes: boolean;          // settings: show student tapes
@@ -33,6 +35,8 @@ export const DoubleBassNeck: React.FC<DoubleBassNeckProps> = ({
 
   targetNoteSpelling,
   targetNoteSpellings,
+  foundIntervals = [],
+  livePlayingPitchClass = null,
   showNoteNames,
   showRootNotes,
   showTapes,
@@ -441,6 +445,19 @@ export const DoubleBassNeck: React.FC<DoubleBassNeckProps> = ({
               const referenceMatch = practiceMode === 'reference' ? getReferenceToneMatch(noteInfo.pitchClass) : null;
               const isLastClicked = activeReferenceClickedKey === noteKey;
 
+              // Live Play Mode tone matching
+              const isFoundLiveChordTone = practiceMode === 'live' && Boolean(
+                foundIntervals && foundIntervals.some(interval => {
+                  const spelling = getNoteSpelling(rootNote, currentChordType, interval);
+                  return getPitchClass(spelling) === noteInfo.pitchClass;
+                })
+              );
+
+              const isLivePlaying = practiceMode === 'live' &&
+                livePlayingPitchClass !== null &&
+                livePlayingPitchClass !== undefined &&
+                noteInfo.pitchClass === livePlayingPitchClass;
+
               // Colors
               let fill = 'transparent';
               let stroke = 'transparent';
@@ -458,6 +475,35 @@ export const DoubleBassNeck: React.FC<DoubleBassNeckProps> = ({
                   showLabel = true;
                   labelColor = intStyle.labelColor;
                   labelText = referenceLabelType === 'intervals' ? referenceMatch.shortLabel : noteInfo.name;
+                } else if (showNoteNames) {
+                  fill = 'rgba(30, 41, 59, 0.9)'; 
+                  stroke = 'rgba(148, 163, 184, 0.5)';
+                  size = 11;
+                  showLabel = true;
+                  labelColor = 'rgba(248, 250, 252, 0.9)';
+                  labelText = noteInfo.name;
+                }
+              } else if (practiceMode === 'live') {
+                if (isFoundLiveChordTone) {
+                  fill = '#10b981'; // emerald green for found chord tones
+                  stroke = isLivePlaying ? '#ffffff' : '#a7f3d0';
+                  size = isLivePlaying ? 13.5 : 12;
+                  showLabel = true;
+                  labelColor = '#ffffff';
+                  labelText = noteInfo.name;
+                } else if (isLivePlaying) {
+                  fill = '#06b6d4'; // cyan for note currently sounding on instrument
+                  stroke = '#67e8f9';
+                  size = 13.5;
+                  showLabel = true;
+                  labelColor = '#ffffff';
+                  labelText = noteInfo.name;
+                } else if (isRootLocation) {
+                  fill = 'rgba(79, 70, 229, 0.85)';
+                  stroke = 'rgba(199, 210, 254, 0.7)';
+                  showLabel = true;
+                  labelColor = '#ffffff';
+                  labelText = noteInfo.name;
                 } else if (showNoteNames) {
                   fill = 'rgba(30, 41, 59, 0.9)'; 
                   stroke = 'rgba(148, 163, 184, 0.5)';
@@ -501,6 +547,8 @@ export const DoubleBassNeck: React.FC<DoubleBassNeckProps> = ({
 
               const hasSolidCircle = practiceMode === 'reference'
                 ? (referenceMatch !== null || showNoteNames)
+                : practiceMode === 'live'
+                ? (isFoundLiveChordTone || isLivePlaying || isRootLocation || showNoteNames)
                 : (isCorrectClick || isWrong || isCorrectTargetLocation || isRootLocation || showNoteNames);
 
               return (
@@ -525,10 +573,16 @@ export const DoubleBassNeck: React.FC<DoubleBassNeckProps> = ({
                       r={size}
                       fill={fill}
                       stroke={stroke}
-                      strokeWidth={isLastClicked ? '3' : '2'}
+                      strokeWidth={isLivePlaying || isLastClicked ? '3' : '2'}
                       style={{
-                        transition: 'all 0.2s ease',
-                        filter: isLastClicked ? 'drop-shadow(0 0 8px rgba(255,255,255,0.7))' : 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))',
+                        transition: 'all 0.15s ease',
+                        filter: isLivePlaying
+                          ? 'drop-shadow(0 0 10px rgba(6, 182, 212, 0.95))'
+                          : isFoundLiveChordTone
+                          ? 'drop-shadow(0 0 8px rgba(16, 185, 129, 0.8))'
+                          : isLastClicked
+                          ? 'drop-shadow(0 0 8px rgba(255,255,255,0.7))'
+                          : 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))',
                       }}
                     />
                   ) : (
@@ -545,7 +599,7 @@ export const DoubleBassNeck: React.FC<DoubleBassNeckProps> = ({
                   )}
 
                   {/* Note Label text */}
-                  {(showLabel || isCorrectClick || isWrong || isCorrectTargetLocation || isRootLocation || referenceMatch !== null) && (
+                  {(showLabel || isCorrectClick || isWrong || isCorrectTargetLocation || isRootLocation || isFoundLiveChordTone || isLivePlaying || referenceMatch !== null) && (
                     <text
                       x={pIndex === 0 ? x - 15 : x}
                       y={noteY + 3.5}

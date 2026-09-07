@@ -31,7 +31,6 @@ interface GameDashboardProps {
   liveCurrentPitch?: DetectedPitch | null;
   liveInputLevel?: number;
   livePermissionError?: string | null;
-  liveErrorsCount?: number;
   
   gameState: 'GUESSING' | 'SUCCESS' | 'TRY_AGAIN' | 'FAILED_SHOW_ANSWER';
   score: number;
@@ -81,7 +80,6 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
   liveCurrentPitch,
   liveInputLevel = 0,
   livePermissionError,
-  liveErrorsCount = 0,
 
   gameState,
   score,
@@ -117,26 +115,17 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
       cardBorderClass = 'border-emerald-500/40 shadow-[0_0_20px_rgba(16,185,129,0.15)]';
       cardBgClass = 'bg-emerald-950/10';
       glowColor = 'rgba(16, 185, 129, 0.1)';
-    } else if (gameState === 'TRY_AGAIN') {
-      feedbackText = 'Wrong Note Detected... 🔍';
-      feedbackSubtext = '1 error recorded. Play the right chord note on your bass!';
-      cardBorderClass = 'border-rose-500/40 shadow-[0_0_20px_rgba(244,63,94,0.15)] animate-wobble';
-      cardBgClass = 'bg-rose-950/10';
-      glowColor = 'rgba(244, 63, 94, 0.1)';
-    } else if (gameState === 'FAILED_SHOW_ANSWER') {
-      feedbackText = '2 Errors: Revealing Chord Notes 💡';
-      feedbackSubtext = 'Positions highlighted on the fingerboard. Moving to next chord...';
-      cardBorderClass = 'border-amber-500/40 shadow-[0_0_20px_rgba(234,179,8,0.15)]';
-      cardBgClass = 'bg-amber-950/10';
-      glowColor = 'rgba(234, 179, 8, 0.1)';
     } else {
-      if (foundIntervals.length === 0) {
-        feedbackText = isLiveListening ? 'Listening for Root, 3rd, 5th, or 7th...' : 'Microphone Paused';
-        feedbackSubtext = isLiveListening ? 'Pluck your double bass to begin.' : 'Click "Start Listening" to activate the microphone.';
-      } else {
-        feedbackText = `Found ${foundIntervals.length} of 4 chord tones!`;
-        feedbackSubtext = 'Pluck remaining notes on your double bass.';
-      }
+      const liveTargetList = ['I', 'III', 'V', 'VII'];
+      const currentTargetInterval = liveTargetList[foundIntervals.length] ?? 'I';
+      const targetSpelling = getNoteSpelling(currentRoot, currentChordType, currentTargetInterval);
+      const targetLabel = currentTargetInterval === 'I' ? 'Root (1st)' : currentTargetInterval === 'III' ? '3rd' : currentTargetInterval === 'V' ? '5th' : '7th';
+
+      feedbackText = isLiveListening ? `Listening for ${targetLabel}: ${targetSpelling}` : 'Microphone Paused';
+      feedbackSubtext = isLiveListening ? `Pluck ${targetSpelling} on your double bass.` : 'Click "Start Mic" to activate the microphone.';
+      cardBorderClass = 'border-white/10';
+      cardBgClass = 'bg-white/5';
+      glowColor = 'rgba(255, 255, 255, 0.05)';
     }
   } else if (practiceMode === 'multi') {
     if (gameState === 'SUCCESS') {
@@ -492,11 +481,11 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
               </span>
             </div>
 
-            {/* Errors / Attempts Card */}
+            {/* Current Target Tone Card */}
             <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/5 border border-white/5 backdrop-blur-md">
-              <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Errors</span>
-              <span className={`text-xl font-bold font-mono ${liveErrorsCount >= 2 ? 'text-rose-400' : liveErrorsCount === 1 ? 'text-yellow-400' : 'text-slate-300'}`}>
-                {liveErrorsCount} / 2
+              <span className="text-[10px] uppercase tracking-wider text-violet-400 font-semibold">Target</span>
+              <span className="text-xl font-bold font-mono text-violet-300">
+                {foundIntervals.length === 0 ? 'Root' : foundIntervals.length === 1 ? '3rd' : foundIntervals.length === 2 ? '5th' : foundIntervals.length === 3 ? '7th' : 'Done!'}
               </span>
             </div>
           </div>
@@ -514,8 +503,8 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
                 <span className={`w-2.5 h-2.5 rounded-full ${isLiveListening ? 'bg-rose-500 animate-pulse shadow-rose-glow' : 'bg-slate-500'} inline-block shrink-0`} />
                 <span>{isLiveListening ? 'Mic Active' : 'Mic Paused'}</span>
               </div>
-              <div className="text-xs font-mono text-slate-400 font-medium">
-                Attempts: <span className={liveErrorsCount === 1 ? 'text-yellow-400 font-bold' : liveErrorsCount >= 2 ? 'text-rose-400 font-bold' : 'text-slate-200 font-bold'}>{Math.max(0, 2 - liveErrorsCount)} left</span>
+              <div className="text-xs font-mono text-indigo-300 font-semibold px-3 py-1 rounded-full bg-indigo-950/40 border border-indigo-500/20">
+                Step <span className="text-white font-bold">{Math.min(4, foundIntervals.length + 1)}</span> of 4
               </div>
             </div>
 
@@ -538,32 +527,41 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
             </div>
 
             {/* Target Chord Tones */}
-            <div className="w-full flex flex-col items-center gap-1.5 mb-4">
+            <div className="w-full flex flex-col items-center gap-2 mb-4">
               <span className="text-[10px] uppercase tracking-widest text-indigo-300 font-bold">
-                Play These 4 Notes ({foundIntervals.length} of 4 Found)
+                Play These 4 Notes In Order ({foundIntervals.length} of 4 Found)
               </span>
-              <div className="flex flex-wrap items-center justify-center gap-2 w-full max-w-lg">
-                {['I', 'III', 'V', 'VII'].map((interval) => {
+              <div className="flex flex-wrap items-center justify-center gap-2.5 w-full max-w-xl">
+                {['I', 'III', 'V', 'VII'].map((interval, idx) => {
                   const isFound = foundIntervals.includes(interval);
+                  const isCurrentTarget = !isFound && (foundIntervals.length === idx);
                   const spelledNote = getNoteSpelling(currentRoot, currentChordType, interval);
                   const descName = getIntervalName(interval, currentChordType);
-                  const intervalLabel = interval === 'I' ? '1st' : interval === 'III' ? '3rd' : interval === 'V' ? '5th' : '7th';
+                  const intervalLabel = interval === 'I' ? '1st (Root)' : interval === 'III' ? '3rd' : interval === 'V' ? '5th' : '7th';
 
                   return (
                     <div
                       key={`live-target-${interval}`}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${
+                      className={`flex items-center gap-2.5 px-3.5 py-2 rounded-xl border transition-all duration-200 ${
                         isFound
-                          ? 'bg-emerald-500/20 border-emerald-500/60 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.25)]'
-                          : gameState === 'FAILED_SHOW_ANSWER'
-                          ? 'bg-amber-500/20 border-amber-500/60 text-amber-300 shadow-[0_0_12px_rgba(234,179,8,0.25)]'
-                          : 'bg-white/5 border-white/10 text-slate-300'
+                          ? 'bg-emerald-500/20 border-emerald-500/60 text-emerald-300 shadow-[0_0_14px_rgba(16,185,129,0.25)]'
+                          : isCurrentTarget
+                          ? 'bg-violet-600/25 border-violet-400 text-white shadow-[0_0_18px_rgba(168,85,247,0.4)] ring-2 ring-violet-400/60 scale-105 animate-listening-glow'
+                          : 'bg-white/5 border-white/10 text-slate-400 opacity-60'
                       }`}
                     >
-                      <span className="text-sm font-black font-mono">
+                      {/* Active radar dot when listening */}
+                      {isCurrentTarget && (
+                        <span className="relative flex h-2 w-2 shrink-0">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75" />
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-violet-400" />
+                        </span>
+                      )}
+
+                      <span className="text-base sm:text-lg font-black font-mono">
                         {spelledNote}
                       </span>
-                      <span className="text-[10px] opacity-75 font-semibold">
+                      <span className="text-xs font-semibold opacity-85">
                         {intervalLabel}
                       </span>
                       {showIntervalNames && (
@@ -571,8 +569,14 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
                           ({descName})
                         </span>
                       )}
-                      <span className={`text-xs font-mono font-bold ${isFound ? 'text-emerald-400' : 'text-slate-500'}`}>
-                        {isFound ? '✓' : '○'}
+                      <span className="ml-1 flex items-center justify-center">
+                        {isFound ? (
+                          <span className="text-lg sm:text-xl font-black text-emerald-400 leading-none">✓</span>
+                        ) : isCurrentTarget ? (
+                          <span className="text-xs font-bold text-violet-300 animate-pulse">●</span>
+                        ) : (
+                          <span className="text-xs font-medium text-slate-500">○</span>
+                        )}
                       </span>
                     </div>
                   );

@@ -21,6 +21,8 @@ interface SettingsPanelProps {
   setShowTapes: (val: boolean) => void;
   showPositionLines: boolean;
   setShowPositionLines: (val: boolean) => void;
+  showStaffNotation: boolean;
+  setShowStaffNotation: (val: boolean) => void;
   
   volume: number;
   setVolume: (val: number) => void;
@@ -52,6 +54,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   setShowTapes,
   showPositionLines,
   setShowPositionLines,
+  showStaffNotation,
+  setShowStaffNotation,
   
   volume,
   setVolume,
@@ -347,6 +351,19 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               type="checkbox"
               checked={showPositionLines}
               onChange={(e) => setShowPositionLines(e.target.checked)}
+              className="w-4 h-4 rounded text-violet-600 bg-white/10 border-white/20 focus:ring-violet-500 focus:ring-2 focus:ring-offset-0 accent-violet-500"
+            />
+          </label>
+
+          <label className="flex items-center justify-between bg-white/5 p-3 rounded-xl border border-white/5 cursor-pointer hover:bg-white/10 transition-colors">
+            <div className="flex flex-col">
+              <span className="text-sm font-semibold text-slate-200">Show Musical Notation</span>
+              <span className="text-xs text-slate-400">Display bass clef staff and notation below dashboard</span>
+            </div>
+            <input
+              type="checkbox"
+              checked={showStaffNotation}
+              onChange={(e) => setShowStaffNotation(e.target.checked)}
               className="w-4 h-4 rounded text-violet-600 bg-white/10 border-white/20 focus:ring-violet-500 focus:ring-2 focus:ring-offset-0 accent-violet-500"
             />
           </label>

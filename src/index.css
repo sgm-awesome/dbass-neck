@@ -200,6 +200,7 @@ body {
   .mt-6 { margin-top: 1.5rem; }
   .mt-12 { margin-top: 3rem; }
 }
+.mx-auto { margin-left: auto; margin-right: auto; }
 .ml-1 { margin-left: 0.25rem; }
 
 /* Overflow & Text */
@@ -213,6 +214,8 @@ body {
 .h-full { height: 100%; }
 .min-h-screen { min-height: 100vh; }
 .max-w-6xl { max-width: 72rem; }
+.max-w-2xl { max-width: 42rem; }
+.max-w-xl { max-width: 36rem; }
 .max-w-\[70px\] { max-width: 70px; }
 .max-w-\[240px\] { max-width: 240px; }
 .max-w-\[280px\] { max-width: 280px; }
@@ -564,3 +567,33 @@ button:active {
   15%, 45%, 75% { transform: translateX(-6px); }
   30%, 60%, 90% { transform: translateX(6px); }
 }
+
+/* Ring utilities */
+.ring-2 { box-shadow: 0 0 0 2px var(--ring-color, rgba(167, 139, 250, 0.7)); }
+.ring-violet-400\/60 { --ring-color: rgba(167, 139, 250, 0.6); }
+.ring-violet-400\/70 { --ring-color: rgba(167, 139, 250, 0.7); }
+
+/* Transforms & Sizing */
+.scale-105 { transform: scale(1.05); }
+.leading-none { line-height: 1; }
+
+/* Themed Colors */
+.bg-violet-600\/25 { background-color: rgba(124, 58, 237, 0.25); }
+.border-violet-400 { border-color: #a78bfa; }
+.border-violet-400\/40 { border-color: rgba(167, 139, 250, 0.4); }
+
+/* Listening Highlight Glow Animation */
+@keyframes listeningGlow {
+  0%, 100% {
+    box-shadow: 0 0 12px rgba(167, 139, 250, 0.35);
+    border-color: rgba(167, 139, 250, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 24px rgba(167, 139, 250, 0.85);
+    border-color: #c4b5fd;
+  }
+}
+.animate-listening-glow {
+  animation: listeningGlow 1.6s ease-in-out infinite;
+}
+
