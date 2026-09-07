@@ -521,20 +521,20 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
 
             {/* Hero Chord Display */}
             <div className="flex flex-col items-center text-center mb-4">
-              <span className="text-xs uppercase tracking-widest text-slate-400 font-bold mb-1">
-                {currentRoot} {chordDef.fullName}
-              </span>
-              <div className="flex items-baseline gap-1">
-                <span className="text-5xl font-black tracking-tight text-white font-mono">
+              <div className="flex items-baseline gap-1.5 sm:gap-2 mb-1">
+                <span className="text-6xl sm:text-7xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">
                   {currentRoot}
                 </span>
-                <span className="text-3xl font-extrabold text-violet-400 font-mono">
+                <span className="text-3xl sm:text-4xl font-extrabold text-violet-400 font-mono">
                   {chordDef.symbol}
                 </span>
               </div>
-              <span className="text-[11px] font-mono text-slate-400 mt-1">
+              <div className="text-xs sm:text-sm text-slate-300 font-semibold mb-1.5">
+                {currentRoot} {chordDef.fullName}
+              </div>
+              <div className="text-[11px] font-mono font-medium text-indigo-300/90 bg-indigo-950/40 px-3 py-0.5 rounded-full border border-indigo-500/20">
                 Formula: {getChordFormula(currentChordType)}
-              </span>
+              </div>
             </div>
 
             {/* Target Chord Tones Checklist */}
