@@ -1,9 +1,15 @@
 import React, { useMemo } from 'react';
-import { BASS_STRINGS, getNoteSpellingForMidi, getPitchClass } from '../utils/musicTheory';
-import type { ChordRoot } from '../utils/musicTheory';
+import { BASS_STRINGS, getNoteSpellingForMidi, getPitchClass, getChordTones } from '../utils/musicTheory';
+import type { ChordRoot, ChordType, PracticeMode, ChordToneInfo } from '../utils/musicTheory';
 
 interface DoubleBassNeckProps {
   rootNote: ChordRoot;
+  currentChordType?: ChordType;
+  practiceMode?: PracticeMode;
+  referenceIntervalFilter?: 'all' | 'root' | 'guide' | 'triad';
+  referenceLabelType?: 'notes' | 'intervals';
+  activeReferenceClickedKey?: string | null;
+
   targetNoteSpelling?: string; // single mode (for backward compat)
   targetNoteSpellings?: string[]; // multi mode array
   showNoteNames: boolean;      // settings: show all note names
@@ -19,6 +25,12 @@ interface DoubleBassNeckProps {
 
 export const DoubleBassNeck: React.FC<DoubleBassNeckProps> = ({
   rootNote,
+  currentChordType = 'min7',
+  practiceMode = 'single',
+  referenceIntervalFilter = 'all',
+  referenceLabelType = 'notes',
+  activeReferenceClickedKey,
+
   targetNoteSpelling,
   targetNoteSpellings,
   showNoteNames,
@@ -112,6 +124,64 @@ export const DoubleBassNeck: React.FC<DoubleBassNeckProps> = ({
   const isRootPitchClass = (stringIndex: number, position: number) => {
     const noteInfo = getNoteInfo(stringIndex, position);
     return getPitchClass(noteInfo.name) === getPitchClass(rootNote);
+  };
+
+  // Chord tones for reference mode
+  const chordTones = useMemo<ChordToneInfo[]>(() => {
+    if (practiceMode !== 'reference' || !currentChordType) return [];
+    return getChordTones(rootNote, currentChordType);
+  }, [practiceMode, rootNote, currentChordType]);
+
+  const getReferenceToneMatch = (pitchClass: number): ChordToneInfo | null => {
+    if (practiceMode !== 'reference' || chordTones.length === 0) return null;
+    const match = chordTones.find(ct => getPitchClass(ct.spelling) === pitchClass);
+    if (!match) return null;
+
+    if (referenceIntervalFilter === 'root' && match.interval !== 'I') return null;
+    if (referenceIntervalFilter === 'guide' && match.interval !== 'III' && match.interval !== 'VII') return null;
+    if (referenceIntervalFilter === 'triad' && match.interval === 'VII') return null;
+
+    return match;
+  };
+
+  const getIntervalColor = (interval: string) => {
+    switch (interval) {
+      case 'I':
+        return {
+          fill: '#4f46e5', // Royal Indigo
+          stroke: '#c7d2fe',
+          labelColor: '#ffffff',
+          size: 13,
+        };
+      case 'III':
+        return {
+          fill: '#059669', // Emerald Green
+          stroke: '#a7f3d0',
+          labelColor: '#ffffff',
+          size: 12,
+        };
+      case 'V':
+        return {
+          fill: '#0284c7', // Sky Blue / Cyan
+          stroke: '#bae6fd',
+          labelColor: '#ffffff',
+          size: 12,
+        };
+      case 'VII':
+        return {
+          fill: '#9333ea', // Violet / Purple
+          stroke: '#f3e8ff',
+          labelColor: '#ffffff',
+          size: 12,
+        };
+      default:
+        return {
+          fill: '#6366f1',
+          stroke: '#ffffff',
+          labelColor: '#ffffff',
+          size: 12,
+        };
+    }
   };
 
   return (
@@ -367,45 +437,71 @@ export const DoubleBassNeck: React.FC<DoubleBassNeckProps> = ({
               // We also want to highlight root notes for structural orientation
               const isRootLocation = showRootNotes && isRootPitchClass(sIndex, pIndex);
 
+              // Reference Mode matching
+              const referenceMatch = practiceMode === 'reference' ? getReferenceToneMatch(noteInfo.pitchClass) : null;
+              const isLastClicked = activeReferenceClickedKey === noteKey;
+
               // Colors
               let fill = 'transparent';
               let stroke = 'transparent';
               let size = 12;
               let showLabel = showNoteNames;
               let labelColor = 'rgba(255, 255, 255, 0.7)';
+              let labelText = noteInfo.name;
 
-              if (isCorrectClick) {
-                fill = '#10b981'; // vibrant green
-                stroke = '#a7f3d0';
-                showLabel = true;
-                labelColor = '#ffffff';
-              } else if (isWrong) {
-                fill = '#f43f5e'; // vibrant rose red
-                stroke = '#fecdd3';
-                showLabel = true;
-                labelColor = '#ffffff';
-              } else if (isCorrectTargetLocation) {
-                // Highlighted correct notes when failed/showing answer
-                fill = '#eab308'; // Amber/Gold
-                stroke = '#fef08a';
-                showLabel = true;
-                labelColor = '#000000';
-              } else if (isRootLocation) {
-                // Always highlight root notes in a neat indigo glow
-                fill = 'rgba(79, 70, 229, 0.85)';
-                stroke = 'rgba(199, 210, 254, 0.7)';
-                showLabel = true;
-                labelColor = '#ffffff';
-              } else if (showNoteNames) {
-                // Easy Mode: show all notes inside subtle slate circles
-                fill = 'rgba(30, 41, 59, 0.9)'; 
-                stroke = 'rgba(148, 163, 184, 0.5)';
-                size = 11;
-                showLabel = true;
-                labelColor = 'rgba(248, 250, 252, 0.9)';
+              if (practiceMode === 'reference') {
+                if (referenceMatch) {
+                  const intStyle = getIntervalColor(referenceMatch.interval);
+                  fill = intStyle.fill;
+                  stroke = isLastClicked ? '#ffffff' : intStyle.stroke;
+                  size = isLastClicked ? intStyle.size + 1.5 : intStyle.size;
+                  showLabel = true;
+                  labelColor = intStyle.labelColor;
+                  labelText = referenceLabelType === 'intervals' ? referenceMatch.shortLabel : noteInfo.name;
+                } else if (showNoteNames) {
+                  fill = 'rgba(30, 41, 59, 0.9)'; 
+                  stroke = 'rgba(148, 163, 184, 0.5)';
+                  size = 11;
+                  showLabel = true;
+                  labelColor = 'rgba(248, 250, 252, 0.9)';
+                  labelText = noteInfo.name;
+                }
+              } else {
+                if (isCorrectClick) {
+                  fill = '#10b981'; // vibrant green
+                  stroke = '#a7f3d0';
+                  showLabel = true;
+                  labelColor = '#ffffff';
+                } else if (isWrong) {
+                  fill = '#f43f5e'; // vibrant rose red
+                  stroke = '#fecdd3';
+                  showLabel = true;
+                  labelColor = '#ffffff';
+                } else if (isCorrectTargetLocation) {
+                  // Highlighted correct notes when failed/showing answer
+                  fill = '#eab308'; // Amber/Gold
+                  stroke = '#fef08a';
+                  showLabel = true;
+                  labelColor = '#000000';
+                } else if (isRootLocation) {
+                  // Always highlight root notes in a neat indigo glow
+                  fill = 'rgba(79, 70, 229, 0.85)';
+                  stroke = 'rgba(199, 210, 254, 0.7)';
+                  showLabel = true;
+                  labelColor = '#ffffff';
+                } else if (showNoteNames) {
+                  // Easy Mode: show all notes inside subtle slate circles
+                  fill = 'rgba(30, 41, 59, 0.9)'; 
+                  stroke = 'rgba(148, 163, 184, 0.5)';
+                  size = 11;
+                  showLabel = true;
+                  labelColor = 'rgba(248, 250, 252, 0.9)';
+                }
               }
 
-              const hasSolidCircle = isCorrectClick || isWrong || isCorrectTargetLocation || isRootLocation || showNoteNames;
+              const hasSolidCircle = practiceMode === 'reference'
+                ? (referenceMatch !== null || showNoteNames)
+                : (isCorrectClick || isWrong || isCorrectTargetLocation || isRootLocation || showNoteNames);
 
               return (
                 <g
@@ -429,10 +525,10 @@ export const DoubleBassNeck: React.FC<DoubleBassNeckProps> = ({
                       r={size}
                       fill={fill}
                       stroke={stroke}
-                      strokeWidth="2"
+                      strokeWidth={isLastClicked ? '3' : '2'}
                       style={{
                         transition: 'all 0.2s ease',
-                        filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))',
+                        filter: isLastClicked ? 'drop-shadow(0 0 8px rgba(255,255,255,0.7))' : 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))',
                       }}
                     />
                   ) : (
@@ -449,18 +545,18 @@ export const DoubleBassNeck: React.FC<DoubleBassNeckProps> = ({
                   )}
 
                   {/* Note Label text */}
-                  {(showLabel || isCorrectClick || isWrong || isCorrectTargetLocation || isRootLocation) && (
+                  {(showLabel || isCorrectClick || isWrong || isCorrectTargetLocation || isRootLocation || referenceMatch !== null) && (
                     <text
                       x={pIndex === 0 ? x - 15 : x}
                       y={noteY + 3.5}
-                      fontSize="9.5"
+                      fontSize={referenceLabelType === 'intervals' && practiceMode === 'reference' ? '10' : '9.5'}
                       fontWeight="bold"
                       fontFamily="sans-serif"
                       fill={labelColor}
                       textAnchor="middle"
                       className="pointer-events-none"
                     >
-                      {noteInfo.name}
+                      {labelText}
                     </text>
                   )}
                 </g>

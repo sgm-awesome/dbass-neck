@@ -2,7 +2,7 @@
 
 export type ChordType = 'Maj7' | 'min7' | '7' | 'ø7' | 'o7';
 
-export type PracticeMode = 'single' | 'multi';
+export type PracticeMode = 'single' | 'multi' | 'reference';
 
 export const DEFAULT_MULTI_INTERVALS = ['III', 'V', 'VII'];
 
@@ -257,6 +257,67 @@ export const getMultiTargetItems = (
     spelling: getNoteSpelling(root, chordType, interval),
     name: getIntervalName(interval, chordType),
   }));
+};
+
+export interface ChordToneInfo {
+  interval: string; // 'I' | 'III' | 'V' | 'VII'
+  label: string;    // 'Root' | '3rd' | '5th' | '7th'
+  shortLabel: string; // 'R', '3' or '♭3', '5' or '♭5', '7' or '♭7' or '𝄫7'
+  spelling: string; // 'C', 'Eb', etc.
+  fullName: string; // 'Minor 3rd'
+  semitones: number;
+}
+
+/**
+ * Returns detailed chord tone information (interval, note spelling, short label, full name)
+ * for all tones belonging to the specified chord.
+ */
+export const getChordTones = (root: ChordRoot, chordType: ChordType): ChordToneInfo[] => {
+  const def = CHORD_DEFINITIONS[chordType];
+  const intervals = def.chordTones;
+  return intervals.map((interval, idx) => {
+    const spelling = getNoteSpelling(root, chordType, interval);
+    const fullName = getIntervalName(interval, chordType);
+    let shortLabel = 'R';
+    if (interval === 'III') {
+      shortLabel = (chordType === 'min7' || chordType === 'ø7' || chordType === 'o7') ? '♭3' : '3';
+    } else if (interval === 'V') {
+      shortLabel = (chordType === 'ø7' || chordType === 'o7') ? '♭5' : '5';
+    } else if (interval === 'VII') {
+      if (chordType === 'Maj7') shortLabel = '7';
+      else if (chordType === 'o7') shortLabel = '𝄫7';
+      else shortLabel = '♭7';
+    }
+    return {
+      interval,
+      label: interval === 'I' ? 'Root' : interval === 'III' ? '3rd' : interval === 'V' ? '5th' : '7th',
+      shortLabel,
+      spelling,
+      fullName,
+      semitones: def.intervals[idx] ?? 0,
+    };
+  });
+};
+
+export const ROOT_WRITTEN_MIDIS: Record<ChordRoot, number> = {
+  'E': 40,
+  'F': 41,
+  'F#': 42,
+  'G': 43,
+  'Ab': 44,
+  'A': 45,
+  'Bb': 46,
+  'B': 47,
+  'C': 48,
+  'Db': 49,
+  'D': 50,
+  'Eb': 51,
+};
+
+export const getChordMidis = (root: ChordRoot, chordType: ChordType): number[] => {
+  const baseMidi = ROOT_WRITTEN_MIDIS[root] ?? 48;
+  const offsets = CHORD_DEFINITIONS[chordType]?.intervals ?? [0, 4, 7, 10];
+  return offsets.map(offset => baseMidi + offset);
 };
 
 /**

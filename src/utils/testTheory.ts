@@ -4,7 +4,9 @@ import {
   getIntervalName, 
   getPitchClass, 
   getNoteSpellingForMidi,
-  getMultiTargetItems 
+  getMultiTargetItems,
+  getChordTones,
+  getChordMidis
 } from './musicTheory';
 
 // A simple test assertion runner
@@ -61,4 +63,35 @@ assert(multiItems[0].spelling === 'Eb' && multiItems[0].interval === 'III', 'C m
 assert(multiItems[1].spelling === 'G' && multiItems[1].interval === 'V', 'C min7 5th should be G');
 assert(multiItems[2].spelling === 'Bb' && multiItems[2].interval === 'VII', 'C min7 7th should be Bb');
 
+// 7. Check Reference Mode getChordTones helper
+const cMaj7Tones = getChordTones('C', 'Maj7');
+assert(cMaj7Tones.length === 4, 'C Maj7 should have 4 chord tones');
+assert(cMaj7Tones[0].spelling === 'C' && cMaj7Tones[0].shortLabel === 'R', 'C Maj7 Root should be C / R');
+assert(cMaj7Tones[1].spelling === 'E' && cMaj7Tones[1].shortLabel === '3', 'C Maj7 3rd should be E / 3');
+assert(cMaj7Tones[2].spelling === 'G' && cMaj7Tones[2].shortLabel === '5', 'C Maj7 5th should be G / 5');
+assert(cMaj7Tones[3].spelling === 'B' && cMaj7Tones[3].shortLabel === '7', 'C Maj7 7th should be B / 7');
+
+const fHalfDimTones = getChordTones('F', 'ø7');
+assert(fHalfDimTones[1].spelling === 'Ab' && fHalfDimTones[1].shortLabel === '♭3', 'F ø7 3rd should be Ab / ♭3');
+assert(fHalfDimTones[2].spelling === 'B' && fHalfDimTones[2].shortLabel === '♭5', 'F ø7 5th should be B / ♭5');
+assert(fHalfDimTones[3].spelling === 'Eb' && fHalfDimTones[3].shortLabel === '♭7', 'F ø7 7th should be Eb / ♭7');
+
+const gDim7Tones = getChordTones('G', 'o7');
+assert(gDim7Tones[3].shortLabel === '𝄫7', 'G o7 7th should have label 𝄫7');
+
+// 8. Check getChordMidis helper
+const cMin7Midis = getChordMidis('C', 'min7');
+assert(cMin7Midis.length === 4, 'C min7 midis should have 4 pitches');
+assert(cMin7Midis[0] === 48, 'C min7 root should be MIDI 48 (C3)');
+assert(cMin7Midis[1] === 51, 'C min7 3rd should be MIDI 51 (Eb3)');
+assert(cMin7Midis[2] === 55, 'C min7 5th should be MIDI 55 (G3)');
+assert(cMin7Midis[3] === 58, 'C min7 7th should be MIDI 58 (Bb3)');
+
+const e7Midis = getChordMidis('E', '7');
+assert(e7Midis[0] === 40, 'E7 root should be MIDI 40 (E2 open)');
+assert(e7Midis[1] === 44, 'E7 3rd should be MIDI 44 (G#2)');
+assert(e7Midis[2] === 47, 'E7 5th should be MIDI 47 (B2)');
+assert(e7Midis[3] === 50, 'E7 7th should be MIDI 50 (D3 open)');
+
 console.log('All music theory tests passed successfully! 🎹🎉');
+

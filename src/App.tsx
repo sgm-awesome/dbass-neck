@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { CHORD_ROOTS, getNoteSpelling, DEFAULT_MULTI_INTERVALS } from './utils/musicTheory';
+import { CHORD_ROOTS, getNoteSpelling, DEFAULT_MULTI_INTERVALS, getChordMidis, getChordTones, ROOT_WRITTEN_MIDIS } from './utils/musicTheory';
 import type { ChordRoot, ChordType, PracticeMode } from './utils/musicTheory';
 import { useSound } from './hooks/useSound';
 import { GameDashboard } from './components/GameDashboard';
@@ -9,11 +9,17 @@ import { SettingsPanel } from './components/SettingsPanel';
 
 export default function App() {
   // Sound Synthesis Hook
-  const { playNote, playSuccess, playFailure, playFoundNote, setVolume, setMuted } = useSound();
+  const { playNote, playSuccess, playFailure, playFoundNote, playArpeggio, setVolume, setMuted } = useSound();
 
   // Practice Mode State
   const [practiceMode, setPracticeMode] = useState<PracticeMode>('single');
   const [multiNoteIntervals, setMultiNoteIntervals] = useState<string[]>(DEFAULT_MULTI_INTERVALS);
+
+  // Reference Mode State
+  const [referenceIntervalFilter, setReferenceIntervalFilter] = useState<'all' | 'root' | 'guide' | 'triad'>('all');
+  const [referenceLabelType, setReferenceLabelType] = useState<'notes' | 'intervals'>('notes');
+  const [activeReferenceClickedKey, setActiveReferenceClickedKey] = useState<string | null>(null);
+  const [lastPlayedInfo, setLastPlayedInfo] = useState<string | null>(null);
 
   // Settings State
   const [isSettingsCollapsed, setIsSettingsCollapsed] = useState(() => {
@@ -91,6 +97,11 @@ export default function App() {
       timerRef.current = null;
     }
 
+    // In reference mode, user freely explores chords
+    if (practiceMode === 'reference') {
+      return;
+    }
+
     // Pick a random root
     const randomRoot = CHORD_ROOTS[Math.floor(Math.random() * CHORD_ROOTS.length)];
     
@@ -137,17 +148,62 @@ export default function App() {
     };
   }, [generateQuestion]);
 
+  // Reference mode audio & chord helpers
+  const handlePlayArpeggio = useCallback(() => {
+    const midis = getChordMidis(currentRoot, currentChordType);
+    playArpeggio(midis);
+    setLastPlayedInfo(`🎶 Playing arpeggio: ${currentRoot}${currentChordType}`);
+  }, [currentRoot, currentChordType, playArpeggio]);
+
+  const handlePlaySingleTone = useCallback((spelling: string) => {
+    const tones = getChordTones(currentRoot, currentChordType);
+    const tone = tones.find(t => t.spelling === spelling);
+    const baseMidi = ROOT_WRITTEN_MIDIS[currentRoot] ?? 48;
+    const midi = tone ? baseMidi + tone.semitones : 48;
+    playNote(midi);
+    if (tone) {
+      setLastPlayedInfo(`🎵 Played: ${tone.spelling} (${tone.label} - ${tone.fullName})`);
+    }
+  }, [currentRoot, currentChordType, playNote]);
+
+  const handleRandomChord = useCallback(() => {
+    const randomRoot = CHORD_ROOTS[Math.floor(Math.random() * CHORD_ROOTS.length)];
+    const chordTypes: ChordType[] = ['Maj7', 'min7', '7', 'ø7', 'o7'];
+    const randomType = chordTypes[Math.floor(Math.random() * chordTypes.length)];
+    setCurrentRoot(randomRoot);
+    setCurrentChordType(randomType);
+    setActiveReferenceClickedKey(null);
+    setLastPlayedInfo(null);
+  }, []);
+
   // Handle note clicks on the neck
   const handleNoteClick = (stringIndex: number, position: number, midiPitch: number, noteName: string) => {
     // Play pitch
     playNote(midiPitch);
 
-    // If already solved or shown, ignore further score-altering clicks
-    if (gameState === 'SUCCESS' || gameState === 'FAILED_SHOW_ANSWER') return;
-
     const clickKey = `${stringIndex}_${position}`;
     // Extract base pitch class (C=0, C#/Db=1, etc.)
     const cleanNote = noteName.replace(/[2-4]/g, '');
+
+    // Reference mode: exploratory without game score or timer penalties
+    if (practiceMode === 'reference') {
+      setActiveReferenceClickedKey(clickKey);
+      const tones = getChordTones(currentRoot, currentChordType);
+      const matchedTone = tones.find(t => {
+        const cleanSpelling = t.spelling.replace(/[2-4]/g, '');
+        return cleanNote === cleanSpelling;
+      });
+
+      if (matchedTone) {
+        setLastPlayedInfo(`🎵 Played: ${noteName} (${matchedTone.label} - ${matchedTone.fullName})`);
+      } else {
+        setLastPlayedInfo(`🎵 Played: ${noteName} (Non-chord tone)`);
+      }
+      return;
+    }
+
+    // If already solved or shown, ignore further score-altering clicks
+    if (gameState === 'SUCCESS' || gameState === 'FAILED_SHOW_ANSWER') return;
 
     if (practiceMode === 'multi') {
       // Multi-note mode: check if note matches ANY of the target chord tone intervals
@@ -294,7 +350,7 @@ export default function App() {
             Double Bass Interval Trainer
           </h1>
           <p className="text-xs text-slate-400 mt-1 max-w-lg font-medium">
-            Learn and master bass intervals and chord arpeggios. Switch between Single Interval and Multi-Note chord tone practice!
+            Learn and master bass intervals, chord arpeggios, and neck reference. Switch between Single Interval, Multi-Note, and Reference mode!
           </p>
         </div>
 
@@ -339,15 +395,31 @@ export default function App() {
               <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200">Interactive Fingerboard (Positions 0 - 12)</h3>
             </div>
             <div className="flex flex-wrap gap-3 sm:gap-4 text-[10px] font-semibold text-slate-400">
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-indigo-600 border border-indigo-400" /> Root note</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 border border-emerald-300" /> Correct guess</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-500 border border-rose-300" /> Wrong guess</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-500 border border-yellow-300" /> Answer hint</span>
+              {practiceMode === 'reference' ? (
+                <>
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-indigo-500 border border-indigo-300" /> Root (1)</span>
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 border border-emerald-300" /> 3rd</span>
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-cyan-500 border border-cyan-300" /> 5th</span>
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-500 border border-purple-300" /> 7th</span>
+                </>
+              ) : (
+                <>
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-indigo-600 border border-indigo-400" /> Root note</span>
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 border border-emerald-300" /> Correct guess</span>
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-500 border border-rose-300" /> Wrong guess</span>
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-500 border border-yellow-300" /> Answer hint</span>
+                </>
+              )}
             </div>
           </div>
 
           <DoubleBassNeck
             rootNote={currentRoot}
+            currentChordType={currentChordType}
+            practiceMode={practiceMode}
+            referenceIntervalFilter={referenceIntervalFilter}
+            referenceLabelType={referenceLabelType}
+            activeReferenceClickedKey={activeReferenceClickedKey}
             targetNoteSpelling={targetNoteSpelling}
             targetNoteSpellings={multiTargetSpellings}
             showNoteNames={showNoteNames}
@@ -373,6 +445,16 @@ export default function App() {
             targetIntervals={multiNoteIntervals}
             foundIntervals={foundIntervals}
             onModeChange={setPracticeMode}
+            onRootChange={setCurrentRoot}
+            onChordTypeChange={setCurrentChordType}
+            referenceIntervalFilter={referenceIntervalFilter}
+            onIntervalFilterChange={setReferenceIntervalFilter}
+            referenceLabelType={referenceLabelType}
+            onLabelTypeChange={setReferenceLabelType}
+            onPlayArpeggio={handlePlayArpeggio}
+            onPlaySingleTone={handlePlaySingleTone}
+            lastPlayedInfo={lastPlayedInfo}
+            onRandomChord={handleRandomChord}
             gameState={gameState}
             score={score}
             streak={streak}
@@ -384,11 +466,11 @@ export default function App() {
           <MusicalStaff
             rootNote={currentRoot}
             chordType={currentChordType}
-            targetInterval={currentInterval}
-            targetIntervals={practiceMode === 'multi' ? multiNoteIntervals : undefined}
-            foundIntervals={foundIntervals}
-            showAnswer={gameState === 'SUCCESS' || gameState === 'FAILED_SHOW_ANSWER'}
-            isCorrect={gameState === 'SUCCESS'}
+            targetInterval={practiceMode === 'reference' ? 'III' : currentInterval}
+            targetIntervals={practiceMode === 'reference' ? ['III', 'V', 'VII'] : (practiceMode === 'multi' ? multiNoteIntervals : undefined)}
+            foundIntervals={practiceMode === 'reference' ? ['III', 'V', 'VII'] : foundIntervals}
+            showAnswer={practiceMode === 'reference' ? true : (gameState === 'SUCCESS' || gameState === 'FAILED_SHOW_ANSWER')}
+            isCorrect={practiceMode === 'reference' ? true : (gameState === 'SUCCESS')}
           />
         </section>
 

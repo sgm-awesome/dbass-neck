@@ -146,7 +146,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                 Practice Settings
               </h3>
               <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/30">
-                {practiceMode === 'multi' ? 'Multi-Note' : 'Single Interval'}
+                {practiceMode === 'reference' ? 'Reference' : practiceMode === 'multi' ? 'Multi-Note' : 'Single Interval'}
               </span>
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
@@ -182,7 +182,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       {/* Practice Mode Selector */}
       <div className="flex flex-col gap-2.5">
         <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Practice Mode</label>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           <button
             type="button"
             onClick={() => setPracticeMode('single')}
@@ -213,6 +213,22 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               <span className={`w-2 h-2 rounded-full ${practiceMode === 'multi' ? 'bg-indigo-400 shadow-[0_0_8px_#818cf8]' : 'bg-slate-600'}`} />
             </div>
             <span className="text-[11px] text-slate-400 leading-tight">Find multiple chord tones (3rd, 5th, 7th...)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setPracticeMode('reference')}
+            className={`p-3 rounded-xl border text-left transition-all flex flex-col gap-1 ${
+              practiceMode === 'reference'
+                ? 'bg-purple-600/20 border-purple-500/60 shadow-[0_0_15px_rgba(168,85,247,0.2)] text-purple-100'
+                : 'bg-white/5 border-white/5 text-slate-400 hover:bg-white/10 hover:text-slate-300'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold font-mono">Reference Explorer</span>
+              <span className={`w-2 h-2 rounded-full ${practiceMode === 'reference' ? 'bg-purple-400 shadow-[0_0_8px_#c084fc]' : 'bg-slate-600'}`} />
+            </div>
+            <span className="text-[11px] text-slate-400 leading-tight">Inspect any chord & all its notes across neck</span>
           </button>
         </div>
       </div>

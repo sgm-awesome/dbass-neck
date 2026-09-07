@@ -5,6 +5,7 @@ export interface SoundControls {
   playSuccess: () => void;
   playFailure: () => void;
   playFoundNote: () => void;
+  playArpeggio: (midiPitches: number[]) => void;
   setVolume: (vol: number) => void;
   setMuted: (muted: boolean) => void;
 }
@@ -219,6 +220,14 @@ export const useSound = (): SoundControls => {
     }
   }, []);
 
+  const playArpeggio = useCallback((midiPitches: number[]) => {
+    midiPitches.forEach((midi, index) => {
+      setTimeout(() => {
+        playNote(midi);
+      }, index * 300);
+    });
+  }, [playNote]);
+
   const setVolume = useCallback((vol: number) => {
     const cleanVol = Math.max(0, Math.min(1, vol));
     currentVolumeRef.current = cleanVol;
@@ -245,6 +254,7 @@ export const useSound = (): SoundControls => {
     playSuccess,
     playFailure,
     playFoundNote,
+    playArpeggio,
     setVolume,
     setMuted,
   };
